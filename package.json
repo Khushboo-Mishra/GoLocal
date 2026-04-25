@@ -1,0 +1,23 @@
+{
+  "name": "golocal",
+  "private": true,
+  "version": "0.1.0",
+  "description": "GoLocal — hyperlocal social discovery app",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:backend": "pnpm --filter backend dev",
+    "dev:frontend": "pnpm --filter frontend start",
+    "build:backend": "pnpm --filter backend build",
+    "lint": "pnpm --filter backend lint && pnpm --filter frontend lint",
+    "typecheck": "pnpm --filter backend typecheck && pnpm --filter frontend typecheck",
+    "test": "pnpm --filter backend test"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.0.0"
+}
