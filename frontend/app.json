@@ -1,0 +1,74 @@
+{
+  "expo": {
+    "name": "GoLocal",
+    "slug": "golocal",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "golocal",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D0D0D"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.golocal.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "GoLocal needs your location to show you what's happening nearby.",
+        "NSLocationAlwaysUsageDescription": "GoLocal uses your location to show nearby events even when the app is in the background.",
+        "NSCameraUsageDescription": "GoLocal needs camera access to let you post photos and videos.",
+        "NSPhotoLibraryUsageDescription": "GoLocal needs photo library access to let you post from your gallery.",
+        "NSMicrophoneUsageDescription": "GoLocal needs microphone access to record videos."
+      }
+    },
+    "android": {
+      "package": "com.golocal.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0D0D0D"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "GoLocal needs your location to show what's happening near you."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "GoLocal needs camera access to let you post photos and videos."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#FF4D1C"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
+    }
+  }
+}
