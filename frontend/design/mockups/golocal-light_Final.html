@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<title>GoLocal — Light</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  button { background: none; border: none; padding: 0; font-family: inherit; color: inherit; cursor: pointer; }
+  body {
+    background: #e8eaef;
+    font-family: 'Sora', sans-serif;
+    min-height: 100vh;
+    display: flex; justify-content: center; align-items: flex-start;
+    color: #111;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  :root {
+    --br: #81c3c9;
+    --br-ink: #0d2528;
+    --br-deep: #3d7e83;
+    --bg: #F7F8FA;
+    --surf: #ffffff;
+    --tx: #111111;
+    --tx2: #666666;
+    --tx3: #9a9a9f;
+    --bd: rgba(0, 0, 0, 0.06);
+  }
+  .phone {
+    width: 390px; height: 844px;
+    background: var(--bg);
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+
+  /* Status */
+  .status {
+    padding: 16px 26px 8px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 15px; font-weight: 600;
+    color: var(--tx); z-index: 3; position: relative; flex-shrink: 0;
+    letter-spacing: -0.3px;
+  }
+  .status-icons { display: flex; gap: 6px; align-items: center; }
+
+  /* Header */
+  .header {
+    padding: 4px 22px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    z-index: 3; flex-shrink: 0;
+  }
+  .logo { font-family: 'Instrument Serif', serif; font-size: 30px; letter-spacing: -0.6px; color: var(--tx); line-height: 1; }
+  .logo .accent { color: var(--br-deep); font-style: italic; }
+  .bell {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: #fff; border: 1px solid rgba(0,0,0,0.06);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .bell::after {
+    content: ''; position: absolute; top: 9px; right: 10px;
+    width: 7px; height: 7px; background: var(--br); border-radius: 50%;
+    border: 2px solid #fff;
+  }
+
+  /* Filter pills */
+  .tabs { display: flex; gap: 8px; padding: 0 22px 16px; z-index: 3; flex-shrink: 0; }
+  .tab {
+    padding: 8px 18px; border-radius: 999px;
+    font-size: 12.5px; font-weight: 500;
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.06);
+    color: var(--tx2);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    cursor: pointer;
+    transition: background-color 200ms ease, color 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+  }
+  .tab.active {
+    background: var(--br); color: var(--br-ink); font-weight: 600;
+    border-color: transparent;
+    box-shadow: 0 4px 14px rgba(129, 195, 201, 0.45);
+  }
+
+  /* Feed */
+  .feed {
+    flex: 1; position: relative;
+    z-index: 2; overflow: hidden;
+  }
+  .feed-scroll {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px 18px 220px 72px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    position: relative;
+  }
+  .feed-scroll::-webkit-scrollbar { display: none; }
+
+  /* Scrubber */
+  .scrubber {
+    position: absolute; left: 32px; top: 16px; bottom: 0;
+    width: 1.5px;
+    background: linear-gradient(180deg,
+      rgba(129, 195, 201, 0.9) 0%,
+      rgba(129, 195, 201, 0.55) 25%,
+      rgba(129, 195, 201, 0.25) 60%,
+      rgba(129, 195, 201, 0) 92%);
+    z-index: 3;
+    pointer-events: none;
+  }
+  .scrubber::before {
+    content: ''; position: absolute;
+    left: -3.25px; top: -3px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--br);
+    box-shadow: 0 0 0 4px rgba(129, 195, 201, 0.18);
+  }
+
+  /* Traveling pulse dot */
+  .scrubber-pulse {
+    position: absolute;
+    left: 28.5px; top: 0;
+    width: 8px; height: 8px;
+    transform: translateY(30px);
+    z-index: 4;
+    pointer-events: none;
+    will-change: transform;
+  }
+  .scrubber-pulse-core {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: var(--br);
+    box-shadow: 0 0 10px rgba(129, 195, 201, 0.6), 0 0 0 4px rgba(129, 195, 201, 0.18);
+  }
+  .scrubber-pulse-ring {
+    position: absolute; inset: -2px;
+    border: 1.5px solid var(--br);
+    border-radius: 50%;
+    animation: scrubberPulseRing 2.2s infinite cubic-bezier(0.2, 0.6, 0.4, 1);
+    opacity: 0;
+  }
+  @keyframes scrubberPulseRing {
+    0% { transform: scale(0.4); opacity: 0.95; }
+    100% { transform: scale(3.6); opacity: 0; }
+  }
+
+  /* Walk markers */
+  .walk-marker {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--tx3);
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+    position: absolute; left: 44px;
+    opacity: 0;
+    transform: translateX(-10px);
+    transition:
+      opacity 520ms ease,
+      transform 520ms cubic-bezier(0.2, 0.8, 0.3, 1),
+      color 320ms ease,
+      text-shadow 320ms ease;
+  }
+  .walk-marker.revealed {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  .walk-marker.detecting {
+    color: var(--br-deep) !important;
+    text-shadow: 0 0 8px rgba(129, 195, 201, 0.55);
+    transform: translateX(0) scale(1.1);
+  }
+  .walk-marker.closest {
+    color: var(--br-deep);
+    font-weight: 600;
+  }
+
+  /* Card */
+  .card {
+    border-radius: 20px; overflow: hidden;
+    position: relative; margin-bottom: 14px;
+    background: var(--surf);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.03);
+    transition: transform 100ms ease;
+    transform-origin: center;
+  }
+  .card.pressed { transform: scale(0.98); }
+
+  /* Card: Image (keeps cinematic gradient) */
+  .card-image {
+    height: 340px;
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.15) 45%, rgba(0,0,0,0.65) 75%, rgba(0,0,0,0.92) 100%),
+      linear-gradient(178deg, #2d1658 0%, #5a1e65 14%, #a83358 32%, #d85e3c 52%, #f39050 66%, #4d1c50 86%, #160824 100%);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+  }
+  .card-astoria {
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.15) 45%, rgba(0,0,0,0.65) 75%, rgba(0,0,0,0.92) 100%),
+      linear-gradient(172deg, #1a2f5c 0%, #2d4d8c 18%, #7a6a80 38%, #d8a854 54%, #e8844a 70%, #5a2f25 86%, #160a18 100%);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+  }
+  /* Light theme: no ambient halo on first card */
+  .feed-entry:first-of-type::before { display: none; }
+
+  .nbh-tag {
+    position: absolute; top: 14px; left: 14px;
+    padding: 6px 13px;
+    background: rgba(255, 255, 255, 0.96);
+    color: var(--br-deep);
+    font-size: 11px; font-weight: 600;
+    border-radius: 999px; letter-spacing: 0.2px;
+  }
+  .card-bottom { position: absolute; bottom: 0; left: 0; right: 0; padding: 18px 18px 16px; }
+  .card-image .username { font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,0.9); margin-bottom: 6px; letter-spacing: 0.1px; }
+  .card-image .caption {
+    font-family: 'Instrument Serif', serif;
+    font-size: 20px; line-height: 1.22; color: #fff;
+    margin-bottom: 14px; letter-spacing: -0.2px;
+  }
+  .card-image .meta-row { display: flex; align-items: center; justify-content: space-between; }
+  .card-image .distance { font-size: 11px; color: rgba(255,255,255,0.75); display: flex; align-items: center; gap: 6px; }
+  .card-image .distance-dot {
+    width: 6px; height: 6px; background: var(--br); border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .card-image .action {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11.5px; color: rgba(255,255,255,0.7);
+    font-weight: 500;
+    transition: color 200ms ease;
+  }
+  .card-image .action.fire.active { color: var(--br); }
+
+  /* Shared */
+  .meta-row { display: flex; align-items: center; justify-content: space-between; }
+  .actions { display: flex; gap: 14px; align-items: center; }
+  .action svg { flex-shrink: 0; }
+
+  /* Fire */
+  .fire { cursor: pointer; }
+  .fire svg { transition: transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1); transform-origin: center; }
+  .fire .fire-filled { display: none; }
+  .fire.active .fire-outline { display: none; }
+  .fire.active .fire-filled { display: inline-block; }
+  .fire.pulsing svg { transform: scale(1.3); }
+
+  /* Card: Text */
+  .card-text { padding: 16px 18px 14px; }
+  .user-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .user-left { display: flex; align-items: center; gap: 10px; }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, #81c3c9 0%, #4a8d92 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; color: #fff;
+    flex-shrink: 0;
+  }
+  .username-inline { font-size: 13px; font-weight: 600; color: var(--tx); line-height: 1.2; }
+  .nbh-inline { font-size: 10.5px; color: var(--tx2); margin-top: 1px; }
+  .more-dots { color: var(--tx3); font-size: 16px; letter-spacing: 1px; }
+  .text-body {
+    font-family: 'Instrument Serif', serif;
+    font-size: 18px; line-height: 1.42;
+    color: var(--tx); margin-bottom: 12px;
+    letter-spacing: -0.1px;
+  }
+  .card-text .distance { font-size: 11px; color: var(--tx2); display: flex; align-items: center; gap: 6px; }
+  .card-text .distance-dot {
+    width: 6px; height: 6px; background: var(--br); border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 3px rgba(129, 195, 201, 0.15);
+  }
+  .card-text .action {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11.5px; color: var(--tx3);
+    font-weight: 500;
+    transition: color 200ms ease;
+  }
+  .card-text .action.fire.active { color: var(--br-deep); }
+  .card-text .action.reply-active { color: var(--br-deep); }
+
+  /* Card: Event */
+  .card-event { padding: 16px 18px 22px; position: relative; }
+  .date-badge {
+    position: absolute; top: 14px; right: 14px;
+    padding: 8px 12px;
+    background: #F7F8FA;
+    border: 1px solid rgba(0,0,0,0.05);
+    border-radius: 12px;
+    text-align: center;
+    font-size: 9.5px; font-weight: 600; letter-spacing: 1.2px;
+    color: var(--tx2); text-transform: uppercase;
+    min-width: 48px;
+  }
+  .date-badge .day {
+    display: block; font-size: 20px;
+    font-family: 'Instrument Serif', serif; letter-spacing: 0;
+    color: var(--br-deep); line-height: 1;
+    margin-top: 3px; font-weight: 400;
+  }
+  .event-kicker { font-size: 10px; color: var(--br-deep); text-transform: uppercase; letter-spacing: 1.4px; font-weight: 600; margin-bottom: 6px; }
+  .event-title { font-family: 'Instrument Serif', serif; font-size: 24px; color: var(--tx); margin-bottom: 4px; padding-right: 68px; line-height: 1.15; letter-spacing: -0.3px; }
+  .event-venue { font-size: 12px; color: var(--tx2); margin-bottom: 14px; }
+  .event-cta-row { display: flex; align-items: center; gap: 12px; }
+  .going-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 8px 14px; background: var(--br); color: var(--br-ink);
+    border-radius: 999px; font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(129, 195, 201, 0.4);
+    transition: transform 150ms ease;
+  }
+  .going-btn:active { transform: scale(0.95); }
+  .going-count { font-size: 11px; color: var(--tx2); }
+
+  /* Card: Local Spot */
+  .card-spot { overflow: hidden; }
+  .spot-hero {
+    height: 120px;
+    background:
+      radial-gradient(ellipse at 72% 38%, rgba(245, 195, 140, 0.5) 0%, transparent 50%),
+      radial-gradient(ellipse at 30% 80%, rgba(139, 90, 53, 0.35) 0%, transparent 55%),
+      linear-gradient(135deg, #3d2415 0%, #6a4a30 30%, #9c7450 55%, #5a3d28 78%, #2a1a0e 100%);
+    position: relative;
+  }
+  .spot-kicker-row {
+    position: absolute; top: 12px; left: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .spot-kicker-badge {
+    padding: 5px 11px;
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--tx);
+    font-size: 9.5px; font-weight: 600;
+    letter-spacing: 1.4px; text-transform: uppercase;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+  }
+  .verified-badge {
+    width: 19px; height: 19px;
+    background: var(--br);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  }
+  .spot-body { padding: 14px 18px 14px; }
+  .spot-name {
+    font-family: 'Instrument Serif', serif;
+    font-size: 21px;
+    color: var(--tx);
+    margin-bottom: 4px;
+    letter-spacing: -0.2px;
+    line-height: 1.12;
+  }
+  .spot-detail {
+    font-size: 13px;
+    color: var(--tx2);
+    margin-bottom: 14px;
+    line-height: 1.42;
+  }
+  .save-spot-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 7px 13px;
+    background: var(--br); color: var(--br-ink);
+    border-radius: 999px;
+    font-size: 11.5px; font-weight: 600;
+    cursor: pointer;
+    transition: background 200ms ease, color 200ms ease, transform 150ms ease, box-shadow 200ms ease;
+    box-shadow: 0 4px 12px rgba(129, 195, 201, 0.4);
+  }
+  .save-spot-btn:active { transform: scale(0.95); }
+  .save-spot-btn.saved {
+    background: transparent; color: var(--br-deep);
+    box-shadow: inset 0 0 0 1.5px var(--br);
+  }
+
+  /* Card: Room */
+  .card-room {
+    padding: 16px 18px 16px;
+    position: relative;
+  }
+  .card-room::before {
+    content: ''; position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 100% 0%, rgba(129, 195, 201, 0.12) 0%, transparent 55%);
+    pointer-events: none;
+    border-radius: inherit;
+  }
+  .room-kicker {
+    font-size: 9.5px;
+    color: var(--br-deep);
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: flex; align-items: center; gap: 7px;
+    position: relative;
+  }
+  .room-live-dot {
+    width: 6px; height: 6px;
+    background: var(--br);
+    border-radius: 50%;
+    animation: liveDotPulse 1.6s infinite ease-out;
+  }
+  @keyframes liveDotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(129,195,201,0.55); }
+    50% { opacity: 0.55; transform: scale(0.85); box-shadow: 0 0 0 5px rgba(129,195,201,0); }
+  }
+  .room-name {
+    font-family: 'Instrument Serif', serif;
+    font-size: 22px;
+    color: var(--tx);
+    margin-bottom: 4px;
+    letter-spacing: -0.2px;
+    line-height: 1.12;
+    position: relative;
+  }
+  .room-talking {
+    font-size: 11.5px;
+    color: var(--tx2);
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+    position: relative;
+  }
+  .room-typing {
+    display: inline-flex; gap: 3px;
+  }
+  .room-typing span {
+    width: 3px; height: 3px;
+    background: var(--br);
+    border-radius: 50%;
+    opacity: 0.4;
+    animation: roomTyping 1.3s infinite ease-in-out;
+  }
+  .room-typing span:nth-child(2) { animation-delay: 0.18s; }
+  .room-typing span:nth-child(3) { animation-delay: 0.36s; }
+  @keyframes roomTyping {
+    0%, 100% { opacity: 0.3; transform: translateY(0); }
+    50% { opacity: 1; transform: translateY(-2px); }
+  }
+  .room-preview {
+    padding: 10px 12px;
+    background: rgba(129, 195, 201, 0.08);
+    border-radius: 10px;
+    font-size: 12.5px;
+    color: #333;
+    margin-bottom: 14px;
+    line-height: 1.4;
+    border-left: 2px solid var(--br);
+    position: relative;
+  }
+  .room-preview .preview-user {
+    color: var(--br-deep);
+    font-weight: 600;
+    margin-right: 7px;
+  }
+  .room-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    position: relative;
+  }
+  .room-avatars {
+    display: flex;
+  }
+  .room-avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--surf);
+    margin-left: -6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .room-avatar:first-child { margin-left: 0; }
+  .room-avatar.more {
+    background: rgba(129, 195, 201, 0.18);
+    color: var(--br-deep);
+    font-size: 9px;
+    font-weight: 600;
+  }
+  .join-room-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 7px 14px;
+    background: var(--br); color: var(--br-ink);
+    border-radius: 999px;
+    font-size: 11.5px; font-weight: 600;
+    cursor: pointer;
+    transition: background 200ms ease, color 200ms ease, transform 150ms ease, box-shadow 200ms ease;
+    box-shadow: 0 4px 12px rgba(129, 195, 201, 0.4);
+  }
+  .join-room-btn:active { transform: scale(0.95); }
+  .join-room-btn.joined {
+    background: transparent; color: var(--br-deep);
+    box-shadow: inset 0 0 0 1.5px var(--br);
+  }
+
+  /* Radar end */
+  .radar-end {
+    margin-top: 34px;
+    margin-left: -40px;
+    padding: 0 0 20px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    position: relative;
+  }
+  .radar-end-ripple {
+    position: relative;
+    width: 12px; height: 12px;
+    margin-left: -2px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .radar-end-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--br);
+    box-shadow: 0 0 0 4px rgba(129, 195, 201, 0.22);
+    z-index: 2;
+    position: relative;
+  }
+  .radar-end-ripple::before,
+  .radar-end-ripple::after {
+    content: ''; position: absolute;
+    inset: -4px;
+    border: 1.5px solid rgba(129, 195, 201, 0.55);
+    border-radius: 50%;
+    animation: radarEndRipple 2.6s infinite cubic-bezier(0.2, 0.6, 0.4, 1);
+  }
+  .radar-end-ripple::after { animation-delay: 1.3s; }
+  @keyframes radarEndRipple {
+    0% { transform: scale(0.3); opacity: 1; }
+    100% { transform: scale(3.4); opacity: 0; }
+  }
+  .radar-end-label {
+    font-size: 10px;
+    color: var(--tx3);
+    letter-spacing: 0.7px;
+    font-weight: 500;
+    text-transform: lowercase;
+    padding-left: 0;
+  }
+
+  /* Nav Area */
+  .nav-area {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 186px; z-index: 20; pointer-events: none;
+  }
+  .nav-bg {
+    position: absolute; inset: 0;
+    background: linear-gradient(0deg,
+      rgba(247, 248, 250, 1) 0%,
+      rgba(247, 248, 250, 0.95) 35%,
+      rgba(247, 248, 250, 0.6) 65%,
+      rgba(247, 248, 250, 0) 100%);
+    pointer-events: none;
+  }
+  .nav-hint {
+    position: absolute; bottom: 172px;
+    left: 50%; transform: translateX(-50%);
+    font-size: 10px; color: var(--tx3);
+    letter-spacing: 0.5px; font-weight: 500;
+    transition: opacity 300ms ease; pointer-events: none;
+  }
+  .nav-hint.hidden { opacity: 0; }
+  .nav-ring {
+    position: absolute; bottom: 58px; left: 50%;
+    width: 0; height: 0;
+  }
+  .nav-bubble {
+    position: absolute; top: 0; left: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    opacity: 0; pointer-events: none;
+    transform: translate(-24px, -24px) scale(0.2);
+    transition: transform 420ms cubic-bezier(0.34, 1.55, 0.64, 1), opacity 220ms ease;
+    cursor: pointer;
+  }
+  .nav-ring.open .nav-bubble { opacity: 1; pointer-events: auto; }
+  .nav-ring.open #nb-home     { transform: translate(-122px, -70px) scale(1); }
+  .nav-ring.open #nb-rooms    { transform: translate(-64px, -124px) scale(1); }
+  .nav-ring.open #nb-profile  { transform: translate(16px, -124px) scale(1); }
+  .nav-ring.open #nb-settings { transform: translate(74px, -70px) scale(1); }
+
+  .bubble-icon {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.04);
+    color: var(--tx2);
+    transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
+  }
+  .nav-bubble:hover .bubble-icon,
+  .nav-bubble.selected .bubble-icon {
+    background: var(--br); color: var(--br-ink); border-color: transparent;
+  }
+  .bubble-label {
+    font-size: 9.5px; color: var(--tx2);
+    font-weight: 500; letter-spacing: 0.2px;
+    transition: color 180ms ease;
+  }
+  .nav-bubble:hover .bubble-label,
+  .nav-bubble.selected .bubble-label {
+    color: var(--br-deep);
+  }
+
+  /* FAB */
+  .fab {
+    position: absolute; bottom: 30px; left: 50%;
+    transform: translateX(-50%);
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--br);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 10px 24px rgba(129, 195, 201, 0.55), 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 25; pointer-events: auto; cursor: pointer;
+    transition: transform 150ms ease;
+  }
+  .fab:active { transform: translateX(-50%) scale(0.94); }
+  .fab svg { transition: transform 420ms cubic-bezier(0.34, 1.2, 0.64, 1); }
+  .fab.open svg { transform: rotate(45deg); }
+
+  /* Comment sheet */
+  .sheet-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0, 0, 0, 0); pointer-events: none;
+    transition: background 300ms ease; z-index: 35;
+  }
+  .sheet-overlay.open { background: rgba(0, 0, 0, 0.35); pointer-events: auto; }
+  .comment-sheet {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 74%; background: #fff;
+    border-top: 1px solid rgba(0, 0, 0, 0.04);
+    border-radius: 24px 24px 0 0;
+    display: flex; flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 350ms cubic-bezier(0.25, 1, 0.5, 1);
+    z-index: 40; overflow: hidden;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.12);
+  }
+  .comment-sheet.open { transform: translateY(0); }
+  .sheet-handle-zone { padding: 6px 0 4px; flex-shrink: 0; touch-action: none; cursor: grab; }
+  .sheet-handle {
+    width: 40px; height: 4px;
+    background: rgba(0, 0, 0, 0.14);
+    border-radius: 2px; margin: 10px auto 2px;
+  }
+  .sheet-header {
+    padding: 8px 22px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .sheet-title { font-size: 17px; font-weight: 600; color: var(--tx); letter-spacing: -0.2px; }
+  .sheet-close { color: var(--tx2); font-size: 18px; padding: 4px 8px; line-height: 1; }
+  .sheet-body { flex: 1; overflow-y: auto; scrollbar-width: none; }
+  .sheet-body::-webkit-scrollbar { display: none; }
+  .comment-item {
+    padding: 14px 22px; display: flex; gap: 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  }
+  .comment-item:last-child { border-bottom: none; }
+  .comment-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 12px; font-weight: 600;
+  }
+  .comment-content { flex: 1; min-width: 0; }
+  .comment-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .comment-user { font-size: 13px; font-weight: 600; color: var(--tx); }
+  .comment-time { font-size: 11px; color: var(--tx3); }
+  .comment-text { font-size: 13.5px; color: #333; line-height: 1.45; margin-bottom: 8px; }
+  .comment-meta { display: flex; align-items: center; gap: 16px; }
+  .comment-action-btn {
+    font-size: 11px; color: var(--tx2);
+    font-weight: 500; display: flex; align-items: center; gap: 4px;
+    transition: color 150ms;
+  }
+  .comment-action-btn:hover { color: var(--br-deep); }
+  .sheet-input {
+    padding: 12px 18px 22px;
+    display: flex; gap: 10px; align-items: center;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    flex-shrink: 0; background: #fff;
+  }
+  .sheet-input input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 999px; padding: 10px 16px;
+    font-family: 'Sora', sans-serif; font-size: 13px;
+    color: var(--tx); outline: none;
+    transition: border-color 200ms, background 200ms;
+  }
+  .sheet-input input:focus {
+    border-color: var(--br);
+    background: #fff;
+  }
+  .sheet-input input::placeholder { color: var(--tx3); }
+  .send-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--br);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(129, 195, 201, 0.4);
+    transition: transform 150ms;
+  }
+  .send-btn:active { transform: scale(0.92); }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="status">
+    <span>9:41</span>
+    <div class="status-icons">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="none"><rect x="0" y="7" width="3" height="5" rx="1" fill="#111"/><rect x="5" y="4" width="3" height="8" rx="1" fill="#111"/><rect x="10" y="1" width="3" height="11" rx="1" fill="#111"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#111" opacity="0.3"/></svg>
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="none"><path d="M8 3C10.2 3 12.2 3.8 13.6 5.2L15 3.8C13.2 2 10.7 1 8 1S2.8 2 1 3.8L2.4 5.2C3.8 3.8 5.8 3 8 3Z" fill="#111"/><path d="M8 6.5C9.4 6.5 10.6 7 11.5 7.9L12.9 6.5C11.6 5.2 9.9 4.5 8 4.5S4.4 5.2 3.1 6.5L4.5 7.9C5.4 7 6.6 6.5 8 6.5Z" fill="#111"/><circle cx="8" cy="10" r="1.5" fill="#111"/></svg>
+      <svg width="27" height="13" viewBox="0 0 27 13" fill="none"><rect x="0.5" y="0.5" width="22" height="12" rx="3" stroke="#111" stroke-opacity="0.35"/><rect x="2" y="2" width="18" height="9" rx="1.5" fill="#111"/><path d="M24 5v3c.9-.3 1.5-1.1 1.5-1.5S24.9 5.3 24 5z" fill="#111"/></svg>
+    </div>
+  </div>
+
+  <div class="header">
+    <span class="logo">G<span class="accent">o</span>Local</span>
+    <div class="bell">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active">Nearby</button>
+    <button class="tab">Trending</button>
+    <button class="tab">Events</button>
+  </div>
+
+  <div class="feed">
+    <div class="scrubber"></div>
+    <div class="scrubber-pulse" id="scrubberPulse">
+      <div class="scrubber-pulse-core"></div>
+      <div class="scrubber-pulse-ring"></div>
+    </div>
+
+    <div class="feed-scroll" id="feedScroll">
+
+      <!-- Card 1: Image, Williamsburg -->
+      <div class="feed-entry" style="position: relative; margin-bottom: 14px;">
+        <div class="walk-marker closest" style="top: 10px;">~2 min walk</div>
+        <div class="card card-image" style="margin-top: 32px;">
+          <div class="nbh-tag">Williamsburg</div>
+          <div class="card-bottom">
+            <div class="username">@maria.w</div>
+            <div class="caption">Golden hour from Wythe rooftop. Still can't believe we live here.</div>
+            <div class="meta-row">
+              <div class="distance"><span class="distance-dot"></span>Under a mile away</div>
+              <div class="actions">
+                <button class="action fire active">
+                  <svg class="fire-outline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5C9.5 5.5 8 8.5 8 11.5c0 0-1.5-1-2-2.5C4.5 11.5 4 13.5 4 15c0 4.4 3.6 7.5 8 7.5s8-3.1 8-7.5c0-5-3.5-8.5-8-12.5z"/></svg>
+                  <svg class="fire-filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5C9.5 5.5 8 8.5 8 11.5c0 0-1.5-1-2-2.5C4.5 11.5 4 13.5 4 15c0 4.4 3.6 7.5 8 7.5s8-3.1 8-7.5c0-5-3.5-8.5-8-12.5z"/></svg>
+                  <span class="fire-count">248</span>
+                </button>
+                <button class="action comment-btn">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  <span>42</span>
+                </button>
+                <button class="action">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Text, Bushwick -->
+      <div class="feed-entry" style="position: relative; margin-bottom: 14px;">
+        <div class="walk-marker" style="top: 10px;">~6 min walk</div>
+        <div class="card card-text" style="margin-top: 30px;">
+          <div class="user-row">
+            <div class="user-left">
+              <div class="avatar">J</div>
+              <div>
+                <div class="username-inline">@jayden_bk</div>
+                <div class="nbh-inline">Bushwick</div>
+              </div>
+            </div>
+            <span class="more-dots">•••</span>
+          </div>
+          <div class="text-body">Anyone know if Variety on Graham is still doing the Sunday bloody mary special? Tried to call but nobody's picking up 🥲</div>
+          <div class="meta-row">
+            <div class="distance"><span class="distance-dot"></span>Under a mile away</div>
+            <div class="actions">
+              <button class="action fire">
+                <svg class="fire-outline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5C9.5 5.5 8 8.5 8 11.5c0 0-1.5-1-2-2.5C4.5 11.5 4 13.5 4 15c0 4.4 3.6 7.5 8 7.5s8-3.1 8-7.5c0-5-3.5-8.5-8-12.5z"/></svg>
+                <svg class="fire-filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5C9.5 5.5 8 8.5 8 11.5c0 0-1.5-1-2-2.5C4.5 11.5 4 13.5 4 15c0 4.4 3.6 7.5 8 7.5s8-3.1 8-7.5c0-5-3.5-8.5-8-12.5z"/></svg>
+                <span class="fire-count">32</span>
+              </button>
+              <button class="action comment-btn reply-active">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span>18 replies</span>
+              </button>
+              <button class="action">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Event, Greenpoint -->
+      <div class="feed-entry" style="position: relative; margin-bottom: 14px;">
+        <div class="walk-marker" style="top: 10px;">~9 min walk</div>
+        <div class="card card-event" style="margin-top: 30px;">
+          <div class="date-badge">JUL<span class="day">12</span></div>
+          <div class="event-kicker">Event · Tonight</div>
+          <div class="event-title">Open Mic at Pencil Factory</div>
+          <div class="event-venue">Pencil Factory Bar · Greenpoint</div>
+          <div class="event-cta-row">
+            <button class="going-btn">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Going
+            </button>
+            <span class="going-count">12 going · 6 friends</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: Text, Bushwick (free events request) -->
+      <div class="feed-entry" style="position: relative; margin-bottom: 14px;">
+        <div class="walk-marker" style="top: 10px;">~12 min walk</div>
+        <div class="card card-text" style="margin-top: 30px;">
+          <div class="user-row">
+            <div class="user-left">
+              <div class="avatar" style="background: linear-gradient(135deg, #f5a27e 0%, #d85e3c 100%); color: #fff;">C</div>
+              <div>
+                <div class="username-inline">@claire.oh</div>
+                <div class="nbh-inline">Bushwick</div>
+              </div>
+            </div>
+            <span class="more-dots">•••</span>
+          </div>
+          <div class="text-body">Any free events in bushwick this weekend? rent just went up and I'm trying to touch grass without spending 😩 open to literally anything</div>
+          <div class="meta-row">
+            <div class="distance"><span class="distance-dot"></span>Under a mile away</div>
+            <div class="actions">
+              <button class="action fire">
+                <svg class="fire-outline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5C9.5 5.5 8 8.5 8 11.5c0 0-1.5-1-2-2.5C4.5 11.5 4 13.5 4 15c0 4.4 3.6 7.5 8 7.5s8-3.1 8-7.5c0-5-3.5-8.5-8-12.5z"/></svg>
+                <svg class="fire-filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5C9.5 5.5 8 8.5 8 11.5c0 0-1.5-1-2-2.5C4.5 11.5 4 13.5 4 15c0 4.4 3.6 7.5 8 7.5s8-3.1 8-7.5c0-5-3.5-8.5-8-12.5z"/></svg>
+                <span class="fire-count">14</span>
+              </button>
+              <button class="action comment-btn reply-active">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span>27 replies</span>
+              </button>
+              <button class="action">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 5: Local Spot, Bushwick coffee pop-up -->
+      <div class="feed-entry" style="position: relative; margin-bottom: 14px;">
+        <div class="walk-marker" style="top: 10px;">~16 min walk</div>
+        <div class="card card-spot" style="margin-top: 30px;">
+          <div class="spot-hero">
+            <div class="spot-kicker-row">
+              <span class="spot-kicker-badge">Local Spot</span>
+              <span class="verified-badge">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0d2528" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+            </div>
+          </div>
+          <div class="spot-body">
+            <div class="spot-name">Variety Coffee Roasters</div>
+            <div class="spot-detail">Ethiopian single-origin cold brew pop-up this Saturday 10a–2p. First 50 folks get a pastry on the house.</div>
+            <div class="meta-row">
+              <div class="distance"><span class="distance-dot"></span>Under a mile · Bushwick</div>
+              <button class="save-spot-btn">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                <span class="save-label">Save Spot</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 6: Room, Crown Heights -->
+      <div class="feed-entry" style="position: relative; margin-bottom: 14px;">
+        <div class="walk-marker" style="top: 10px;">~22 min walk</div>
+        <div class="card card-room" style="margin-top: 30px;">
+          <div class="room-kicker">
+            <span class="room-live-dot"></span>
+            Room · Live
+          </div>
+          <div class="room-name">Crown Heights Night Owls 🦉</div>
+          <div class="room-talking">
+            14 people talking
+            <span class="room-typing"><span></span><span></span><span></span></span>
+          </div>
+          <div class="room-preview">
+            <span class="preview-user">@mia.k</span>best bodega for 3am cravings? asking for a friend 👀
+          </div>
+          <div class="room-footer">
+            <div class="room-avatars">
+              <div class="room-avatar" style="background: linear-gradient(135deg, #f5a27e, #d85e3c);">M</div>
+              <div class="room-avatar" style="background: linear-gradient(135deg, #81c3c9, #3d7e83);">J</div>
+              <div class="room-avatar" style="background: linear-gradient(135deg, #a88bd9, #5a3d8a);">D</div>
+              <div class="room-avatar more">+11</div>
+            </div>
+            <button class="join-room-btn">
+              <span class="join-label">Join</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 7: Image, Astoria -->
+      <div class="feed-entry" style="position: relative; margin-bottom: 14px;">
+        <div class="walk-marker" style="top: 10px;">~28 min walk</div>
+        <div class="card card-image card-astoria" style="margin-top: 30px;">
+          <div class="nbh-tag">Astoria</div>
+          <div class="card-bottom">
+            <div class="username">@dmitri.a</div>
+            <div class="caption">Found a taverna that makes the lamb like my yiayia's. Sunday dinners sorted for the rest of summer 🤌</div>
+            <div class="meta-row">
+              <div class="distance"><span class="distance-dot"></span>Under a mile away</div>
+              <div class="actions">
+                <button class="action fire">
+                  <svg class="fire-outline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5C9.5 5.5 8 8.5 8 11.5c0 0-1.5-1-2-2.5C4.5 11.5 4 13.5 4 15c0 4.4 3.6 7.5 8 7.5s8-3.1 8-7.5c0-5-3.5-8.5-8-12.5z"/></svg>
+                  <svg class="fire-filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5C9.5 5.5 8 8.5 8 11.5c0 0-1.5-1-2-2.5C4.5 11.5 4 13.5 4 15c0 4.4 3.6 7.5 8 7.5s8-3.1 8-7.5c0-5-3.5-8.5-8-12.5z"/></svg>
+                  <span class="fire-count">156</span>
+                </button>
+                <button class="action comment-btn">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  <span>31</span>
+                </button>
+                <button class="action">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 8: Text, LES -->
+      <div class="feed-entry" style="position: relative; margin-bottom: 14px;">
+        <div class="walk-marker" style="top: 10px;">~35 min walk</div>
+        <div class="card card-text" style="margin-top: 30px;">
+          <div class="user-row">
+            <div class="user-left">
+              <div class="avatar" style="background: linear-gradient(135deg, #d8b8e8 0%, #8a5fb5 100%); color: #fff;">S</div>
+              <div>
+                <div class="username-inline">@sadie.z</div>
+                <div class="nbh-inline">Lower East Side</div>
+              </div>
+            </div>
+            <span class="more-dots">•••</span>
+          </div>
+          <div class="text-body">hot tip: Clinton St Baking is on Resy now. no more 2hr sidewalk waits in August 🙏 pancakes are finally back on the menu</div>
+          <div class="meta-row">
+            <div class="distance"><span class="distance-dot"></span>Under a mile away</div>
+            <div class="actions">
+              <button class="action fire">
+                <svg class="fire-outline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5C9.5 5.5 8 8.5 8 11.5c0 0-1.5-1-2-2.5C4.5 11.5 4 13.5 4 15c0 4.4 3.6 7.5 8 7.5s8-3.1 8-7.5c0-5-3.5-8.5-8-12.5z"/></svg>
+                <svg class="fire-filled" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5C9.5 5.5 8 8.5 8 11.5c0 0-1.5-1-2-2.5C4.5 11.5 4 13.5 4 15c0 4.4 3.6 7.5 8 7.5s8-3.1 8-7.5c0-5-3.5-8.5-8-12.5z"/></svg>
+                <span class="fire-count">76</span>
+              </button>
+              <button class="action comment-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span>29</span>
+              </button>
+              <button class="action">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Radar end: "Edge of your radius" -->
+      <div class="radar-end">
+        <div class="radar-end-ripple">
+          <div class="radar-end-dot"></div>
+        </div>
+        <div class="radar-end-label">Edge of your radius</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <div class="nav-area">
+    <div class="nav-bg"></div>
+    <div class="nav-hint" id="navHint">tap to navigate</div>
+    <div class="nav-ring" id="navRing">
+      <div class="nav-bubble" id="nb-home">
+        <div class="bubble-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></div>
+        <div class="bubble-label">Home</div>
+      </div>
+      <div class="nav-bubble" id="nb-rooms">
+        <div class="bubble-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <div class="bubble-label">Rooms</div>
+      </div>
+      <div class="nav-bubble" id="nb-profile">
+        <div class="bubble-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+        <div class="bubble-label">Profile</div>
+      </div>
+      <div class="nav-bubble" id="nb-settings">
+        <div class="bubble-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+        <div class="bubble-label">Settings</div>
+      </div>
+    </div>
+    <button class="fab" id="fab">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0d2528" stroke-width="2.8" stroke-linecap="round">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Sheet -->
+  <div class="sheet-overlay" id="sheetOverlay"></div>
+  <div class="comment-sheet" id="commentSheet">
+    <div class="sheet-handle-zone" id="sheetHandleZone">
+      <div class="sheet-handle"></div>
+    </div>
+    <div class="sheet-header">
+      <span class="sheet-title">Comments</span>
+      <button class="sheet-close" id="sheetClose">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="comment-item">
+        <div class="comment-avatar" style="background: linear-gradient(135deg, #f5a27e, #d85e3c);">SH</div>
+        <div class="comment-content">
+          <div class="comment-head"><span class="comment-user">@sofia.h</span><span class="comment-time">5m ago</span></div>
+          <div class="comment-text">ok that sky tho 😭 was this from the top of the Wythe? i've been trying to find a spot like this</div>
+          <div class="comment-meta">
+            <button class="comment-action-btn">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2.5C9.5 5.5 8 8.5 8 11.5c0 0-1.5-1-2-2.5C4.5 11.5 4 13.5 4 15c0 4.4 3.6 7.5 8 7.5s8-3.1 8-7.5c0-5-3.5-8.5-8-12.5z"/></svg>
+              12
+            </button>
+            <button class="comment-action-btn">Reply</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="comment-item">
+        <div class="comment-avatar" style="background: linear-gradient(135deg, #81c3c9, #3d7e83);">BB</div>
+        <div class="comment-content">
+          <div class="comment-head"><span class="comment-user">@brooklynbruce</span><span class="comment-time">12m ago</span></div>
+          <div class="comment-text">caught this exact view last thursday. best free thing about living here honestly</div>
+          <div class="comment-meta">
+            <button class="comment-action-btn">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2.5C9.5 5.5 8 8.5 8 11.5c0 0-1.5-1-2-2.5C4.5 11.5 4 13.5 4 15c0 4.4 3.6 7.5 8 7.5s8-3.1 8-7.5c0-5-3.5-8.5-8-12.5z"/></svg>
+              8
+            </button>
+            <button class="comment-action-btn">Reply</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="comment-item">
+        <div class="comment-avatar" style="background: linear-gradient(135deg, #a88bd9, #5a3d8a);">JB</div>
+        <div class="comment-content">
+          <div class="comment-head"><span class="comment-user">@jayden_bk</span><span class="comment-time">28m ago</span></div>
+          <div class="comment-text">third rooftop this week?? pls let me come next time 🙏 i'm on domino st if u ever need a +1</div>
+          <div class="comment-meta">
+            <button class="comment-action-btn">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2.5C9.5 5.5 8 8.5 8 11.5c0 0-1.5-1-2-2.5C4.5 11.5 4 13.5 4 15c0 4.4 3.6 7.5 8 7.5s8-3.1 8-7.5c0-5-3.5-8.5-8-12.5z"/></svg>
+              4
+            </button>
+            <button class="comment-action-btn">Reply</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sheet-input">
+      <input type="text" placeholder="Add a comment..." />
+      <button class="send-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0d2528" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  // ────────────────────────────────────────────
+  //  Existing interactions (preserved unchanged)
+  // ────────────────────────────────────────────
+
+  // FAB Radial Menu
+  const fab = document.getElementById('fab');
+  const navRing = document.getElementById('navRing');
+  const navHint = document.getElementById('navHint');
+  const bubbles = document.querySelectorAll('.nav-bubble');
+  let navOpen = false;
+
+  try {
+    if (localStorage.getItem('golocal-nav-hint-seen') === '1') {
+      navHint.classList.add('hidden');
+    }
+  } catch (e) {}
+
+  function toggleNav(forceState) {
+    navOpen = (typeof forceState === 'boolean') ? forceState : !navOpen;
+    navRing.classList.toggle('open', navOpen);
+    fab.classList.toggle('open', navOpen);
+    bubbles.forEach((b, i) => {
+      const delay = navOpen ? i * 50 : (bubbles.length - 1 - i) * 40;
+      b.style.transitionDelay = delay + 'ms';
+    });
+    if (navOpen) {
+      navHint.classList.add('hidden');
+      try { localStorage.setItem('golocal-nav-hint-seen', '1'); } catch (e) {}
+    }
+  }
+
+  fab.addEventListener('click', (e) => { e.stopPropagation(); toggleNav(); });
+  bubbles.forEach(b => {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      bubbles.forEach(x => x.classList.remove('selected'));
+      b.classList.add('selected');
+      setTimeout(() => {
+        toggleNav(false);
+        setTimeout(() => b.classList.remove('selected'), 450);
+      }, 180);
+    });
+  });
+
+  // Filter Pills
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+
+  // Fire Toggle
+  document.querySelectorAll('.fire').forEach(fire => {
+    fire.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const active = fire.classList.toggle('active');
+      const countEl = fire.querySelector('.fire-count');
+      let count = parseInt(countEl.textContent, 10) || 0;
+      count += active ? 1 : -1;
+      countEl.textContent = count;
+      fire.classList.add('pulsing');
+      setTimeout(() => fire.classList.remove('pulsing'), 180);
+    });
+  });
+
+  // Comment Sheet
+  const commentSheet = document.getElementById('commentSheet');
+  const sheetOverlay = document.getElementById('sheetOverlay');
+  const sheetClose = document.getElementById('sheetClose');
+  const sheetHandleZone = document.getElementById('sheetHandleZone');
+
+  function openSheet() {
+    commentSheet.classList.add('open');
+    sheetOverlay.classList.add('open');
+    if (navOpen) toggleNav(false);
+  }
+  function closeSheet() {
+    commentSheet.classList.remove('open');
+    sheetOverlay.classList.remove('open');
+    commentSheet.style.transform = '';
+  }
+
+  document.querySelectorAll('.comment-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); openSheet(); });
+  });
+  sheetOverlay.addEventListener('click', closeSheet);
+  sheetClose.addEventListener('click', (e) => { e.stopPropagation(); closeSheet(); });
+
+  let dragStartY = null, dragOffset = 0, isDragging = false;
+  function dragStart(y) {
+    isDragging = true; dragStartY = y; dragOffset = 0;
+    commentSheet.style.transition = 'none';
+  }
+  function dragMove(y) {
+    if (!isDragging) return;
+    dragOffset = Math.max(0, y - dragStartY);
+    commentSheet.style.transform = `translateY(${dragOffset}px)`;
+  }
+  function dragEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    commentSheet.style.transition = '';
+    if (dragOffset > 100) closeSheet();
+    else commentSheet.style.transform = '';
+  }
+  sheetHandleZone.addEventListener('mousedown', (e) => dragStart(e.clientY));
+  sheetHandleZone.addEventListener('touchstart', (e) => dragStart(e.touches[0].clientY), { passive: true });
+  window.addEventListener('mousemove', (e) => dragMove(e.clientY));
+  window.addEventListener('touchmove', (e) => { if (isDragging) dragMove(e.touches[0].clientY); }, { passive: true });
+  window.addEventListener('mouseup', dragEnd);
+  window.addEventListener('touchend', dragEnd);
+
+  // Card Press
+  document.querySelectorAll('.card').forEach(card => {
+    const press = (e) => {
+      if (e.target.closest('.action, .going-btn, .more-dots, .save-spot-btn, .join-room-btn')) return;
+      card.classList.add('pressed');
+    };
+    const release = () => card.classList.remove('pressed');
+    card.addEventListener('mousedown', press);
+    card.addEventListener('mouseup', release);
+    card.addEventListener('mouseleave', release);
+    card.addEventListener('touchstart', press, { passive: true });
+    card.addEventListener('touchend', release);
+    card.addEventListener('touchcancel', release);
+  });
+
+  document.querySelector('.phone').addEventListener('click', (e) => {
+    if (navOpen && !e.target.closest('.fab, .nav-bubble, .nav-ring')) {
+      toggleNav(false);
+    }
+  });
+
+  if (new URLSearchParams(location.search).get('open') === '1') {
+    requestAnimationFrame(() => toggleNav(true));
+  }
+
+  // ────────────────────────────────────────────
+  //  NEW: Scroll-reactive radar
+  // ────────────────────────────────────────────
+
+  const feedScroll = document.getElementById('feedScroll');
+  const scrubberPulse = document.getElementById('scrubberPulse');
+  let pulseRAF = null;
+
+  function updatePulse() {
+    const scrollTop = feedScroll.scrollTop;
+    const maxScroll = Math.max(1, feedScroll.scrollHeight - feedScroll.clientHeight);
+    const progress = Math.min(1, Math.max(0, scrollTop / maxScroll));
+    const h = feedScroll.clientHeight;
+    const minY = 28;
+    const maxY = h - 155;
+    const y = minY + progress * Math.max(0, maxY - minY);
+    scrubberPulse.style.transform = `translateY(${y}px)`;
+    pulseRAF = null;
+  }
+
+  feedScroll.addEventListener('scroll', () => {
+    if (!pulseRAF) pulseRAF = requestAnimationFrame(updatePulse);
+  }, { passive: true });
+
+  // Walk-marker reveal + detecting brighten (IntersectionObserver)
+  let staggerCounter = 0;
+  let staggerResetTimeout;
+  function revealMarker(marker) {
+    if (!marker || marker.classList.contains('revealed')) return;
+    const delay = staggerCounter * 110;
+    staggerCounter++;
+    clearTimeout(staggerResetTimeout);
+    staggerResetTimeout = setTimeout(() => { staggerCounter = 0; }, 700);
+    setTimeout(() => {
+      marker.classList.add('revealed', 'detecting');
+      setTimeout(() => marker.classList.remove('detecting'), 430);
+    }, delay);
+  }
+
+  const markerObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        revealMarker(entry.target.querySelector('.walk-marker'));
+      }
+    });
+  }, { root: feedScroll, threshold: 0.22 });
+
+  document.querySelectorAll('.feed-entry').forEach(el => markerObserver.observe(el));
+
+  // Initial pulse position
+  requestAnimationFrame(updatePulse);
+
+  // ────────────────────────────────────────────
+  //  Small polish: Save Spot + Join Room toggles
+  // ────────────────────────────────────────────
+
+  document.querySelectorAll('.save-spot-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const label = btn.querySelector('.save-label');
+      const saved = btn.classList.toggle('saved');
+      if (label) label.textContent = saved ? 'Saved' : 'Save Spot';
+    });
+  });
+
+  document.querySelectorAll('.join-room-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const label = btn.querySelector('.join-label');
+      const joined = btn.classList.toggle('joined');
+      if (label) label.textContent = joined ? 'Joined' : 'Join';
+    });
+  });
+
+})();
+</script>
+</body>
+</html>
