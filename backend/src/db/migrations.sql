@@ -145,3 +145,12 @@ INSERT INTO rooms (name, neighborhood) VALUES
   ('East Village', 'East Village'),
   ('NYU', 'Greenwich Village'),
   ('Lower East Side', 'Lower East Side');
+
+-- ─────────────────────────────────────────────────────────────
+-- 8. Notification preferences
+--    Stored as columns on users so we can filter in the same
+--    geo query the worker already runs (no extra join).
+-- ─────────────────────────────────────────────────────────────
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS notify_nearby BOOLEAN NOT NULL DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS notify_event_soon BOOLEAN NOT NULL DEFAULT TRUE;

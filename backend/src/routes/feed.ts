@@ -3,20 +3,27 @@ import { z } from 'zod'
 import { db } from '../db/client'
 import { requireAuth } from '../middleware/requireAuth'
 import { getFeedCacheKey, getCached, setCache } from '../services/cache'
+import { toPostDto } from './_dto'
+import { milesToMeters } from '../utils/geo'
 
-const feedQuerySchema = z.object({
+const feedQuery = z.object({
   lat: z.coerce.number().min(-90).max(90),
   lng: z.coerce.number().min(-180).max(180),
   radius: z.coerce.number().min(0.1).max(10).default(3),
   type: z.enum(['event', 'hangout', 'deal']).optional(),
-  cursor: z.string().optional(), // ISO timestamp for pagination
+  cursor: z.string().optional(),
+  limit: z.coerce.number().min(1).max(50).default(20),
+})
+
+const goingQuerySchema = z.object({
+  cursor: z.string().optional(),
   limit: z.coerce.number().min(1).max(50).default(20),
 })
 
 export async function feedRoutes(server: FastifyInstance) {
-  // GET /feed — nearby posts
+  // ── GET /feed — nearby posts ────────────────────────────
   server.get('/', { preHandler: requireAuth }, async (request, reply) => {
-    const query = feedQuerySchema.safeParse(request.query)
+    const query = feedQuery.safeParse(request.query)
     if (!query.success) {
       return reply.status(400).send({ error: query.error.flatten() })
     }
@@ -24,12 +31,18 @@ export async function feedRoutes(server: FastifyInstance) {
     const { lat, lng, radius, type, cursor, limit } = query.data
     const clerkUserId = (request as any).clerkUserId
 
-    // Try cache first (60s TTL for nearby feed)
+    // 60s TTL cache — only first page, only when no per-user state matters.
+    // We bypass cache when the user is signed in because liked/saved is per-user.
+    // Practically that means cache mostly helps anonymous load tests; that's fine.
     const cacheKey = getFeedCacheKey(lat, lng, radius, type)
-    const cached = await getCached(cacheKey)
-    if (cached && !cursor) return cached
+    if (!cursor) {
+      const cached = await getCached<{ posts: any[]; nextCursor: string | null; hasMore: boolean }>(cacheKey + ':public')
+      // Only serve the cached version to skip the DB when there is no
+      // signed-in user. For signed-in users we always re-query for liked/saved.
+      if (cached && !clerkUserId) return cached
+    }
 
-    const radiusMeters = radius * 1609.34 // miles → meters
+    const radiusMeters = milesToMeters(radius)
 
     const rows = await db`
       SELECT
@@ -41,7 +54,7 @@ export async function feedRoutes(server: FastifyInstance) {
         ROUND(ST_Distance(
           p.location::geography,
           ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
-        ) / 1609.34, 1) AS distance_miles,
+        )::numeric / 1609.344, 1) AS distance_miles,
         u.id AS user_id, u.name AS user_name, u.avatar_url,
         EXISTS(
           SELECT 1 FROM post_likes pl
@@ -76,33 +89,41 @@ export async function feedRoutes(server: FastifyInstance) {
     `
 
     const hasMore = rows.length > limit
-    const posts = hasMore ? rows.slice(0, limit) : rows
-    const nextCursor = hasMore ? posts[posts.length - 1].created_at : null
+    const sliced = hasMore ? rows.slice(0, limit) : rows
+    const nextCursor = hasMore
+      ? (sliced[sliced.length - 1] as any).created_at
+      : null
 
-    const result = { posts, nextCursor, hasMore }
+    const result = {
+      posts: sliced.map((r: any) => toPostDto(r)),
+      nextCursor:
+        nextCursor instanceof Date ? nextCursor.toISOString() : nextCursor,
+      hasMore,
+    }
 
-    // Cache only first page (no cursor)
-    if (!cursor) await setCache(cacheKey, result, 60)
-
+    if (!cursor) await setCache(cacheKey + ':public', result, 60)
     return result
   })
 
-  // GET /feed/trending — most liked in last 24h
+  // ── GET /feed/trending — most liked in last 24h ─────────
   server.get('/trending', { preHandler: requireAuth }, async (request, reply) => {
-    const query = feedQuerySchema.safeParse(request.query)
+    const query = feedQuery.safeParse(request.query)
     if (!query.success) return reply.status(400).send({ error: query.error.flatten() })
 
     const { lat, lng, radius, type, cursor, limit } = query.data
-    const radiusMeters = radius * 1609.34
+    const radiusMeters = milesToMeters(radius)
 
     const rows = await db`
       SELECT
-        p.id, p.type, p.title, p.media_url, p.media_type,
+        p.id, p.type, p.title, p.description,
+        p.media_url, p.media_type, p.cf_stream_id,
         p.like_count, p.save_count, p.event_time, p.created_at,
+        ST_X(p.location::geometry) AS lng,
+        ST_Y(p.location::geometry) AS lat,
         ROUND(ST_Distance(
           p.location::geography,
           ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
-        ) / 1609.34, 1) AS distance_miles,
+        )::numeric / 1609.344, 1) AS distance_miles,
         u.id AS user_id, u.name AS user_name, u.avatar_url
       FROM posts p
       JOIN users u ON u.id = p.user_id
@@ -120,20 +141,27 @@ export async function feedRoutes(server: FastifyInstance) {
       LIMIT ${limit}
     `
 
-    return { posts: rows }
+    return { posts: rows.map((r: any) => toPostDto(r)) }
   })
 
-  // GET /feed/going — posts the current user has saved
+  // ── GET /feed/going — saved-by-me posts ─────────────────
   server.get('/going', { preHandler: requireAuth }, async (request, reply) => {
+    const query = goingQuerySchema.safeParse(request.query)
+    if (!query.success) return reply.status(400).send({ error: query.error.flatten() })
+
+    const { cursor, limit } = query.data
     const clerkUserId = (request as any).clerkUserId
-    const { cursor, limit = 20 } = request.query as any
 
     const rows = await db`
       SELECT
-        p.id, p.type, p.title, p.media_url, p.media_type,
+        p.id, p.type, p.title, p.description,
+        p.media_url, p.media_type, p.cf_stream_id,
         p.like_count, p.save_count, p.event_time, p.created_at,
-        u.name AS user_name, u.avatar_url,
-        sp.saved_at
+        ST_X(p.location::geometry) AS lng,
+        ST_Y(p.location::geometry) AS lat,
+        u.id AS user_id, u.name AS user_name, u.avatar_url,
+        sp.saved_at,
+        TRUE AS saved
       FROM saved_posts sp
       JOIN posts p ON p.id = sp.post_id
       JOIN users u ON u.id = p.user_id
@@ -142,11 +170,18 @@ export async function feedRoutes(server: FastifyInstance) {
         AND p.is_deleted = FALSE
         ${cursor ? db`AND sp.saved_at < ${new Date(cursor)}` : db``}
       ORDER BY sp.saved_at DESC
-      LIMIT ${Number(limit) + 1}
+      LIMIT ${limit + 1}
     `
 
-    const hasMore = rows.length > Number(limit)
-    const posts = hasMore ? rows.slice(0, Number(limit)) : rows
-    return { posts, hasMore, nextCursor: hasMore ? posts[posts.length - 1].saved_at : null }
+    const hasMore = rows.length > limit
+    const sliced = hasMore ? rows.slice(0, limit) : rows
+    const nextCursorRaw = hasMore ? (sliced[sliced.length - 1] as any).saved_at : null
+
+    return {
+      posts: sliced.map((r: any) => toPostDto(r)),
+      hasMore,
+      nextCursor:
+        nextCursorRaw instanceof Date ? nextCursorRaw.toISOString() : nextCursorRaw,
+    }
   })
 }
