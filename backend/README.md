@@ -41,7 +41,10 @@ cp .env.example .env
 Fill in every variable. See comments in `.env.example` for where to find each value.
 
 ### 4. Run database migrations
-Open your Supabase project → SQL Editor → paste and run `src/db/migrations.sql` in order.
+```bash
+pnpm db:migrate
+```
+This applies `src/db/migrations.sql` against `DATABASE_URL`. Most statements are idempotent (`IF NOT EXISTS`, `OR REPLACE`); the initial `CREATE TYPE` statements will error on a re-run, which is expected. As an alternative, paste the file into Supabase → SQL Editor.
 
 ### 5. Start the dev server
 ```bash
@@ -60,26 +63,30 @@ curl http://localhost:3000/health
 ```
 backend/
 ├── src/
-│   ├── index.ts          # Server entry point, plugin registration
+│   ├── index.ts             # Server entry (async main), plugin registration
 │   ├── db/
-│   │   ├── client.ts     # Postgres connection pool
-│   │   └── migrations.sql # Run in Supabase SQL Editor
+│   │   ├── client.ts        # Postgres connection pool
+│   │   └── migrations.sql   # Schema (run via `pnpm db:migrate` or Supabase SQL editor)
 │   ├── routes/
-│   │   ├── auth.ts       # POST /auth/sync
-│   │   ├── feed.ts       # GET /feed, /feed/trending, /feed/going
-│   │   ├── posts.ts      # CRUD + like/save/report
-│   │   ├── users.ts      # Profile, location, push token, block
-│   │   └── rooms.ts      # GET /rooms, /rooms/:id/posts
+│   │   ├── auth.ts          # POST /auth/sync
+│   │   ├── feed.ts          # GET /feed, /feed/trending, /feed/going
+│   │   ├── posts.ts         # CRUD + like/save/report
+│   │   ├── users.ts         # Profile, location, push token, avatar, block, report
+│   │   ├── rooms.ts         # GET /rooms, /rooms/:id/posts
+│   │   ├── _dto.ts          # snake_case row → camelCase DTO mappers
+│   │   └── _currentUser.ts  # Clerk-ID → users.id resolver (with 60s cache)
 │   ├── middleware/
-│   │   └── requireAuth.ts # Clerk JWT verification
+│   │   └── requireAuth.ts   # Clerk JWT verification (verifyToken)
 │   ├── services/
-│   │   ├── cache.ts      # Redis get/set helpers
-│   │   ├── media.ts      # R2 upload + Cloudflare Stream (TODO)
-│   │   └── notifications.ts # Expo push + BullMQ jobs (TODO)
+│   │   ├── cache.ts         # Redis get/set helpers
+│   │   ├── media.ts         # R2 image upload + Cloudflare Stream video upload
+│   │   └── notifications.ts # BullMQ queue + Expo Push REST client
 │   ├── jobs/
-│   │   └── worker.ts     # BullMQ worker (TODO)
+│   │   └── worker.ts        # BullMQ consumer — nearby_post + event_soon fanout
 │   └── utils/
-│       └── geo.ts        # Geo helper functions (TODO)
+│       └── geo.ts           # miles↔meters, lat/lng schemas, haversine
+├── scripts/
+│   └── migrate.ts           # Applies migrations.sql against DATABASE_URL
 ├── Dockerfile
 ├── package.json
 ├── tsconfig.json
@@ -97,20 +104,23 @@ All endpoints documented in [docs/api.md](../docs/api.md).
 | GET | /health | No | Health check |
 | POST | /auth/sync | Yes | Upsert user after Clerk sign-in |
 | GET | /users/me | Yes | Get current user profile |
-| PATCH | /users/me | Yes | Update name / radius |
+| PATCH | /users/me | Yes | Update name, radius, avatar, notification prefs |
 | POST | /users/me/location | Yes | Update GPS location |
 | POST | /users/me/push-token | Yes | Register push token |
 | POST | /users/me/avatar | Yes | Upload profile photo |
+| POST | /users/:id/block | Yes | Block another user |
+| POST | /users/:id/report | Yes | Report another user |
 | GET | /feed | Yes | Nearby posts (geo-filtered) |
 | GET | /feed/trending | Yes | Most liked in 24h |
 | GET | /feed/going | Yes | User's saved posts |
-| POST | /posts | Yes | Create a post |
+| POST | /posts | Yes | Create a post (10/hr per user) |
 | GET | /posts/:id | Yes | Post detail |
 | DELETE | /posts/:id | Yes | Soft delete (owner only) |
 | POST | /posts/:id/like | Yes | Toggle like |
 | POST | /posts/:id/save | Yes | Toggle save |
 | POST | /posts/:id/report | Yes | Report a post |
 | GET | /rooms | Yes | List system rooms |
+| GET | /rooms/:id/posts | Yes | Posts inside a room (paginated) |
 
 ## Adding a new endpoint
 

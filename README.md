@@ -64,8 +64,7 @@ pnpm install
 
 # 3. Set up environment variables
 cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
-# Fill in your keys — see each README for details
+# Fill in your keys — see backend/README.md for where each value lives
 
 # 4. Start backend
 pnpm dev:backend
@@ -90,10 +89,11 @@ pnpm dev:frontend
 
 ## CI/CD
 
-Every PR to `main` or `dev` runs:
-1. TypeScript typecheck (backend + frontend)
-2. ESLint
-3. Backend tests
+Every PR or push to `main` that touches `backend/` runs (`.github/workflows/backend.yml`):
+1. `pnpm typecheck` — TypeScript strict mode
+2. `pnpm build` — compile to `dist/`
+
+Frontend CI, lint, and test steps are planned but not yet wired up.
 
 Railway auto-deploys on merge to `main`.
 
