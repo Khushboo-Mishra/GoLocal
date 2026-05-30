@@ -4,3 +4,9 @@
 
 expo-env.d.ts
 # @end expo-cli
+
+# Environment variables — root .gitignore already covers these,
+# but be explicit so workspace tools (EAS, editors) also respect it.
+.env
+.env.*
+!.env.example

@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Stack } from 'expo-router'
-// import { ClerkProvider } from '@clerk/clerk-expo'
-// import * as SecureStore from 'expo-secure-store'
+import { ClerkProvider, useAuth } from '@clerk/clerk-expo'
+import { tokenCache } from '@clerk/clerk-expo/token-cache'
 import * as SplashScreen from 'expo-splash-screen'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -18,6 +18,7 @@ import {
 } from '@expo-google-fonts/sora'
 import { ThemeProvider } from '@/theme'
 import { CommentSheetProvider } from '@/components/sheets/CommentSheetProvider'
+import { setupAuthInterceptor } from '@/services/api/client'
 
 SplashScreen.preventAutoHideAsync()
 
@@ -31,14 +32,17 @@ const queryClient = new QueryClient({
   },
 })
 
-// const tokenCache = {
-//   async getToken(key: string) {
-//     return SecureStore.getItemAsync(key)
-//   },
-//   async saveToken(key: string, value: string) {
-//     return SecureStore.setItemAsync(key, value)
-//   },
-// }
+// Wires the Clerk JWT into every Axios request.
+// Must live inside ClerkProvider so useAuth() is available.
+function AuthBridge(): null {
+  const { getToken } = useAuth()
+  useEffect(() => {
+    setupAuthInterceptor(getToken)
+  // getToken is a stable reference from Clerk — safe to run once.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  return null
+}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -56,25 +60,22 @@ export default function RootLayout() {
   if (!fontsLoaded) return null
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        {/* ClerkProvider removed temporarily — re-add when backend is ready */}
-        {/* <ClerkProvider
-          publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? 'placeholder_for_dev'}
-          tokenCache={tokenCache}
-        > */}
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider>
-            <CommentSheetProvider>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(app)" />
-              </Stack>
-            </CommentSheetProvider>
-          </ThemeProvider>
-        </QueryClientProvider>
-        {/* </ClerkProvider> */}
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ClerkProvider tokenCache={tokenCache}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+              <CommentSheetProvider>
+                <AuthBridge />
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(auth)" />
+                  <Stack.Screen name="(app)" />
+                </Stack>
+              </CommentSheetProvider>
+            </ThemeProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ClerkProvider>
   )
 }

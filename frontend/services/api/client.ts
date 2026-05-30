@@ -8,8 +8,24 @@ export const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Temporarily disabled — re-enable when ClerkProvider is restored
-export function setupAuthInterceptor(_getToken: () => Promise<string | null>) {}
+// Track the current interceptor ID so we can replace it if called again
+// (e.g. during hot-reload in dev). Eject-before-register prevents stacking.
+let _interceptorId: number | null = null
+
+export function setupAuthInterceptor(
+  getToken: () => Promise<string | null>
+): void {
+  if (_interceptorId !== null) {
+    apiClient.interceptors.request.eject(_interceptorId)
+  }
+  _interceptorId = apiClient.interceptors.request.use(async (config) => {
+    const token = await getToken()
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  })
+}
 
 // ── Feed ────────────────────────────────────────────────────
 export const feedApi = {
@@ -67,4 +83,13 @@ export const usersApi = {
     apiClient.post('/users/me/avatar', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then((r) => r.data),
+}
+
+// ── Rooms ───────────────────────────────────────────────────
+export const roomsApi = {
+  list: () =>
+    apiClient.get('/rooms').then((r) => r.data),
+
+  getPosts: (id: string, params?: { cursor?: string; limit?: number; type?: string }) =>
+    apiClient.get(`/rooms/${id}/posts`, { params }).then((r) => r.data),
 }

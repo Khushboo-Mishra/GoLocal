@@ -1,8 +1,9 @@
 export type User = {
   id: string
   name: string
-  email: string
-  avatarUrl?: string
+  avatarUrl: string | null
+  radiusMiles: number
+  createdAt: string
 }
 
 export type Neighborhood = string;
