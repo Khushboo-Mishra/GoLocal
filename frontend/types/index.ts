@@ -6,12 +6,46 @@ export type User = {
   createdAt: string
 }
 
-export type Neighborhood = string;
+// ── Posts (matches backend PostDto — backend/src/routes/_dto.ts) ──
+export type PostType = 'event' | 'hangout' | 'deal'
+export type MediaType = 'image' | 'video'
 
-export type Distance = {
-  walkMinutes: number;
-  label: string;
-};
+export type Post = {
+  id: string
+  type: PostType
+  title: string
+  description: string | null
+  mediaUrl: string
+  mediaType: MediaType
+  cfStreamId: string | null
+  likeCount: number
+  saveCount: number
+  eventTime: string | null
+  createdAt: string
+  distanceMiles?: number
+  lat?: number
+  lng?: number
+  userId: string
+  userName: string
+  avatarUrl: string | null
+  liked?: boolean
+  saved?: boolean
+}
+
+export type FeedResponse = {
+  posts: Post[]
+  nextCursor: string | null
+  hasMore: boolean
+}
+
+export type TrendingResponse = {
+  posts: Post[]
+}
+
+export type FeedFilter = 'nearby' | 'trending' | 'events'
+
+// ── Comments — V2, still fixture-backed (services/fixtures/comments.ts) ──
+export type Neighborhood = string;
 
 export type Author = {
   handle: string;
@@ -19,74 +53,6 @@ export type Author = {
   avatarGradient: [string, string];
   neighborhood: Neighborhood;
 };
-
-export type FireState = {
-  count: number;
-  active: boolean;
-};
-
-export type CommentCount = {
-  count: number;
-  hasReplyActivity?: boolean;
-};
-
-type BasePost = {
-  id: string;
-  author?: Author;
-  distance: Distance;
-  neighborhood: Neighborhood;
-  fire: FireState;
-  comments: CommentCount;
-};
-
-export type ImagePost = BasePost & {
-  kind: 'image';
-  caption: string;
-  gradientStops: string;
-  variant?: 'sunset' | 'astoria' | string;
-};
-
-export type TextPost = BasePost & {
-  kind: 'text';
-  body: string;
-  author: Author;
-};
-
-export type EventPost = BasePost & {
-  kind: 'event';
-  title: string;
-  venue: string;
-  dateMonth: string;
-  dateDay: number;
-  kicker: string;
-  goingCount: number;
-  friendsGoing: number;
-  isGoing: boolean;
-};
-
-export type LocalSpotPost = BasePost & {
-  kind: 'spot';
-  name: string;
-  detail: string;
-  verified: boolean;
-  saved: boolean;
-  heroGradient: [string, string, string];
-};
-
-export type RoomPost = BasePost & {
-  kind: 'room';
-  name: string;
-  isLive: boolean;
-  peopleTalking: number;
-  preview: { user: string; text: string };
-  attendees: { initial: string; gradient: [string, string] }[];
-  extraCount: number;
-  joined: boolean;
-};
-
-export type Post = ImagePost | TextPost | EventPost | LocalSpotPost | RoomPost;
-
-export type FeedFilter = 'nearby' | 'trending' | 'events';
 
 export type Comment = {
   id: string;

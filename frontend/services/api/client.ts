@@ -1,4 +1,5 @@
 import axios from 'axios'
+import type { FeedResponse, TrendingResponse } from '@/types'
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'
 
@@ -30,13 +31,13 @@ export function setupAuthInterceptor(
 // ── Feed ────────────────────────────────────────────────────
 export const feedApi = {
   getNearby: (params: { lat: number; lng: number; radius: number; type?: string; cursor?: string }) =>
-    apiClient.get('/feed', { params }).then((r) => r.data),
+    apiClient.get<FeedResponse>('/feed', { params }).then((r) => r.data),
 
   getTrending: (params: { lat: number; lng: number; radius: number }) =>
-    apiClient.get('/feed/trending', { params }).then((r) => r.data),
+    apiClient.get<TrendingResponse>('/feed/trending', { params }).then((r) => r.data),
 
   getGoing: (cursor?: string) =>
-    apiClient.get('/feed/going', { params: { cursor } }).then((r) => r.data),
+    apiClient.get<FeedResponse>('/feed/going', { params: { cursor } }).then((r) => r.data),
 }
 
 // ── Posts ───────────────────────────────────────────────────
@@ -53,10 +54,10 @@ export const postsApi = {
     apiClient.delete(`/posts/${id}`).then((r) => r.data),
 
   like: (id: string) =>
-    apiClient.post(`/posts/${id}/like`).then((r) => r.data),
+    apiClient.post<{ liked: boolean; likeCount: number }>(`/posts/${id}/like`).then((r) => r.data),
 
   save: (id: string) =>
-    apiClient.post(`/posts/${id}/save`).then((r) => r.data),
+    apiClient.post<{ saved: boolean; saveCount: number }>(`/posts/${id}/save`).then((r) => r.data),
 
   report: (id: string, reason: string) =>
     apiClient.post(`/posts/${id}/report`, { reason }).then((r) => r.data),

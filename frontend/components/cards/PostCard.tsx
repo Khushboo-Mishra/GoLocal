@@ -1,10 +1,8 @@
 import React from 'react';
 import type { Post } from '@/types';
-import { ImageCard } from './ImageCard';
-import { TextCard } from './TextCard';
 import { EventCard } from './EventCard';
-import { LocalSpotCard } from './LocalSpotCard';
-import { RoomCard } from './RoomCard';
+import { HangoutCard } from './HangoutCard';
+import { DealCard } from './DealCard';
 
 interface PostCardProps {
   post: Post;
@@ -12,19 +10,15 @@ interface PostCardProps {
 }
 
 export function PostCard({ post, onCommentPress }: PostCardProps) {
-  switch (post.kind) {
-    case 'image':
-      return <ImageCard post={post} onCommentPress={onCommentPress} />;
-    case 'text':
-      return <TextCard post={post} onCommentPress={onCommentPress} />;
+  switch (post.type) {
     case 'event':
-      return <EventCard post={post} />;
-    case 'spot':
-      return <LocalSpotCard post={post} />;
-    case 'room':
-      return <RoomCard post={post} />;
+      return <EventCard post={post} onCommentPress={onCommentPress} />;
+    case 'hangout':
+      return <HangoutCard post={post} onCommentPress={onCommentPress} />;
+    case 'deal':
+      return <DealCard post={post} onCommentPress={onCommentPress} />;
     default: {
-      const _exhaustive: never = post;
+      const _exhaustive: never = post.type;
       return null;
     }
   }
