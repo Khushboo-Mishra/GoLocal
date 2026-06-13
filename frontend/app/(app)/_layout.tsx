@@ -64,6 +64,7 @@ export default function TabLayout() {
         <Tabs.Screen name="rooms" />
         <Tabs.Screen name="profile" />
         <Tabs.Screen name="settings" />
+        <Tabs.Screen name="create" options={{ href: null }} />
       </Tabs>
       <RadialNav />
     </View>

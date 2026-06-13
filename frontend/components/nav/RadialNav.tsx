@@ -26,10 +26,11 @@ type BubbleDef = {
 };
 
 const BUBBLES: BubbleDef[] = [
-  { id: 'home', label: 'Home', route: '/(app)/', targetX: -122, targetY: -70 },
-  { id: 'rooms', label: 'Rooms', route: '/(app)/rooms', targetX: -64, targetY: -124 },
-  { id: 'profile', label: 'Profile', route: '/(app)/profile', targetX: 16, targetY: -124 },
-  { id: 'settings', label: 'Settings', route: '/(app)/settings', targetX: 74, targetY: -70 },
+  { id: 'home', label: 'Home', route: '/(app)/', targetX: -121, targetY: -32 },
+  { id: 'rooms', label: 'Rooms', route: '/(app)/rooms', targetX: -76, targetY: -99 },
+  { id: 'create', label: 'Create', route: '/(app)/create', targetX: 0, targetY: -125 },
+  { id: 'profile', label: 'Profile', route: '/(app)/profile', targetX: 76, targetY: -99 },
+  { id: 'settings', label: 'Settings', route: '/(app)/settings', targetX: 121, targetY: -32 },
 ];
 
 function BubbleIcon({ id, selected }: { id: string; selected: boolean }) {
@@ -67,6 +68,14 @@ function BubbleIcon({ id, selected }: { id: string; selected: boolean }) {
           stroke={strokeColor} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
           <Circle cx={12} cy={12} r={3} />
           <Path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </Svg>
+      );
+    case 'create':
+      return (
+        <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"
+          stroke={strokeColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <Line x1="12" y1="5" x2="12" y2="19" />
+          <Line x1="5" y1="12" x2="19" y2="12" />
         </Svg>
       );
     default:
@@ -145,6 +154,7 @@ export function RadialNav() {
   function getActiveId(): string {
     if (pathname === '/' || pathname === '/index') return 'home';
     if (pathname === '/rooms') return 'rooms';
+    if (pathname === '/create') return 'create';
     if (pathname === '/profile') return 'profile';
     if (pathname === '/settings') return 'settings';
     return 'home';
