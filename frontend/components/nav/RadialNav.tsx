@@ -25,11 +25,13 @@ type BubbleDef = {
   targetY: number;
 };
 
+// Rooms is deferred to V2 — bubble removed from the fan menu (rooms.tsx,
+// roomsApi, and the backend rooms routes are untouched and still reachable
+// by direct navigation).
 const BUBBLES: BubbleDef[] = [
   { id: 'home', label: 'Home', route: '/(app)/', targetX: -121, targetY: -32 },
-  { id: 'rooms', label: 'Rooms', route: '/(app)/rooms', targetX: -76, targetY: -99 },
-  { id: 'create', label: 'Create', route: '/(app)/create', targetX: 0, targetY: -125 },
-  { id: 'profile', label: 'Profile', route: '/(app)/profile', targetX: 76, targetY: -99 },
+  { id: 'create', label: 'Create', route: '/(app)/create', targetX: -53, targetY: -113 },
+  { id: 'profile', label: 'Profile', route: '/(app)/profile', targetX: 53, targetY: -113 },
   { id: 'settings', label: 'Settings', route: '/(app)/settings', targetX: 121, targetY: -32 },
 ];
 
