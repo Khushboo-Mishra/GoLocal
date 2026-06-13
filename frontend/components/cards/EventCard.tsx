@@ -7,7 +7,9 @@ import type { Post } from '@/types';
 import { postsApi } from '@/services/api/client';
 import { ActionRow } from './shared/ActionRow';
 import { DistanceLabel } from './shared/DistanceLabel';
+import { NeighborhoodLabel } from './shared/NeighborhoodLabel';
 import { formatDistanceLabel, formatEventDate } from './shared/format';
+import { getNeighborhood } from '@/lib/neighborhoods';
 import { Svg, Polyline } from 'react-native-svg';
 
 interface EventCardProps {
@@ -106,7 +108,10 @@ export function EventCard({ post, onCommentPress }: EventCardProps) {
         )}
 
         <View style={styles.metaRow}>
-          <DistanceLabel label={formatDistanceLabel(post.distanceMiles)} />
+          <View style={styles.metaLeft}>
+            <DistanceLabel label={formatDistanceLabel(post.distanceMiles)} />
+            <NeighborhoodLabel name={getNeighborhood(post.lat, post.lng)} />
+          </View>
           <ActionRow
             postId={post.id}
             liked={!!post.liked}
@@ -201,5 +206,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 8,
+  },
+  metaLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
 });

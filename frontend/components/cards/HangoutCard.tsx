@@ -7,7 +7,9 @@ import type { Post } from '@/types';
 import { Avatar } from './shared/Avatar';
 import { ActionRow } from './shared/ActionRow';
 import { DistanceLabel } from './shared/DistanceLabel';
+import { NeighborhoodLabel } from './shared/NeighborhoodLabel';
 import { formatDistanceLabel } from './shared/format';
+import { getNeighborhood } from '@/lib/neighborhoods';
 
 interface HangoutCardProps {
   post: Post;
@@ -39,7 +41,10 @@ export function HangoutCard({ post, onCommentPress }: HangoutCardProps) {
           <Text style={styles.username}>{post.userName}</Text>
           <Text style={styles.caption}>{post.title}</Text>
           <View style={styles.metaRow}>
-            <DistanceLabel label={formatDistanceLabel(post.distanceMiles)} surface="dark" />
+            <View style={styles.metaLeft}>
+              <DistanceLabel label={formatDistanceLabel(post.distanceMiles)} surface="dark" />
+              <NeighborhoodLabel name={getNeighborhood(post.lat, post.lng)} surface="dark" />
+            </View>
             <ActionRow
               postId={post.id}
               liked={!!post.liked}
@@ -90,7 +95,10 @@ export function HangoutCard({ post, onCommentPress }: HangoutCardProps) {
 
       {/* Meta row */}
       <View style={styles.metaRow}>
-        <DistanceLabel label={formatDistanceLabel(post.distanceMiles)} surface="light" />
+        <View style={styles.metaLeft}>
+          <DistanceLabel label={formatDistanceLabel(post.distanceMiles)} surface="light" />
+          <NeighborhoodLabel name={getNeighborhood(post.lat, post.lng)} surface="light" />
+        </View>
         <ActionRow
           postId={post.id}
           liked={!!post.liked}
@@ -181,5 +189,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  metaLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
 });

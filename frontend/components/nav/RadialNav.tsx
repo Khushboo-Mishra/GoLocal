@@ -3,8 +3,8 @@ import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
   withTiming,
+  Easing,
   runOnJS,
   type SharedValue,
 } from 'react-native-reanimated';
@@ -25,13 +25,11 @@ type BubbleDef = {
   targetY: number;
 };
 
-// Rooms is deferred to V2 — bubble removed from the fan menu (rooms.tsx,
-// roomsApi, and the backend rooms routes are untouched and still reachable
-// by direct navigation).
 const BUBBLES: BubbleDef[] = [
   { id: 'home', label: 'Home', route: '/(app)/', targetX: -121, targetY: -32 },
-  { id: 'create', label: 'Create', route: '/(app)/create', targetX: -53, targetY: -113 },
-  { id: 'profile', label: 'Profile', route: '/(app)/profile', targetX: 53, targetY: -113 },
+  { id: 'rooms', label: 'Rooms', route: '/(app)/rooms', targetX: -76, targetY: -99 },
+  { id: 'create', label: 'Create', route: '/(app)/create', targetX: 0, targetY: -125 },
+  { id: 'profile', label: 'Profile', route: '/(app)/profile', targetX: 76, targetY: -99 },
   { id: 'settings', label: 'Settings', route: '/(app)/settings', targetX: 121, targetY: -32 },
 ];
 
@@ -164,8 +162,8 @@ export function RadialNav() {
 
   function toggleOpen() {
     const next = isOpenValue.value < 0.5 ? 1 : 0;
-    isOpenValue.value = withSpring(next, { damping: 14, stiffness: 200 });
-    fabRotation.value = withSpring(next * 45, { damping: 14, stiffness: 200 });
+    isOpenValue.value = withTiming(next, { duration: 180, easing: Easing.out(Easing.cubic) });
+    fabRotation.value = withTiming(next * 45, { duration: 180, easing: Easing.out(Easing.cubic) });
     if (next === 1) {
       hintOpacity.value = withTiming(0, { duration: 300 });
     }
@@ -174,8 +172,8 @@ export function RadialNav() {
 
   function navigateTo(route: string) {
     Haptics.selectionAsync();
-    isOpenValue.value = withSpring(0, { damping: 14, stiffness: 200 });
-    fabRotation.value = withSpring(0, { damping: 14, stiffness: 200 });
+    isOpenValue.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.cubic) });
+    fabRotation.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.cubic) });
     router.push(route as any);
   }
 
@@ -244,11 +242,7 @@ export function RadialNav() {
         ]}
       >
         <Animated.View style={fabIconStyle}>
-          <Svg width={22} height={22} viewBox="0 0 24 24" fill="none"
-            stroke={c.brandInk} strokeWidth={2.8} strokeLinecap="round">
-            <Line x1="12" y1="5" x2="12" y2="19" />
-            <Line x1="5" y1="12" x2="19" y2="12" />
-          </Svg>
+          <Text style={[styles.fabGlyph, { color: c.brandInk }]}>G</Text>
         </Animated.View>
       </Pressable>
     </View>
@@ -310,5 +304,10 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  fabGlyph: {
+    fontFamily: 'InstrumentSerif_400Regular',
+    fontSize: 28,
+    lineHeight: 30,
   },
 });

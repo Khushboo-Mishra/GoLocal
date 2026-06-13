@@ -5,7 +5,9 @@ import { useTheme } from '@/theme';
 import type { Post } from '@/types';
 import { ActionRow } from './shared/ActionRow';
 import { DistanceLabel } from './shared/DistanceLabel';
+import { NeighborhoodLabel } from './shared/NeighborhoodLabel';
 import { formatDistanceLabel } from './shared/format';
+import { getNeighborhood } from '@/lib/neighborhoods';
 
 interface DealCardProps {
   post: Post;
@@ -46,7 +48,10 @@ export function DealCard({ post, onCommentPress }: DealCardProps) {
         )}
 
         <View style={styles.metaRow}>
-          <DistanceLabel label={formatDistanceLabel(post.distanceMiles)} />
+          <View style={styles.metaLeft}>
+            <DistanceLabel label={formatDistanceLabel(post.distanceMiles)} />
+            <NeighborhoodLabel name={getNeighborhood(post.lat, post.lng)} />
+          </View>
           <ActionRow
             postId={post.id}
             liked={!!post.liked}
@@ -99,5 +104,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 8,
+  },
+  metaLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
 });
