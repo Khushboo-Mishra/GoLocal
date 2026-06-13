@@ -82,8 +82,6 @@ export async function postRoutes(server: FastifyInstance) {
         }
       }
 
-      if (!fileBuffer) return reply.status(400).send({ error: 'Missing file field' })
-
       // Coerce + validate text fields.
       const parsed = postFieldsSchema.safeParse({
         type: fields.type,
@@ -98,36 +96,39 @@ export async function postRoutes(server: FastifyInstance) {
       }
       const { type, title, description, lat, lng, eventTime } = parsed.data
 
-      // Media validation + upload.
-      let mediaUrl: string
-      let mediaType: 'image' | 'video'
+      // Media validation + upload — optional. Text-only posts skip
+      // the R2/Stream upload entirely and store no media.
+      let mediaUrl: string | null = null
+      let mediaType: 'image' | 'video' | null = null
       let cfStreamId: string | null = null
 
-      if (isImageMime(fileMime)) {
-        if (fileBuffer.length > IMAGE_LIMIT) {
-          return reply.status(400).send({ error: 'Image must be under 10MB' })
+      if (fileBuffer) {
+        if (isImageMime(fileMime)) {
+          if (fileBuffer.length > IMAGE_LIMIT) {
+            return reply.status(400).send({ error: 'Image must be under 10MB' })
+          }
+          const { url } = await uploadImage(
+            fileBuffer,
+            `posts/${userId}`,
+            fileMime!
+          )
+          mediaUrl = url
+          mediaType = 'image'
+        } else if (isVideoMime(fileMime)) {
+          if (fileBuffer.length > VIDEO_LIMIT) {
+            return reply.status(400).send({ error: 'Video must be under 50MB' })
+          }
+          const { streamId, playbackUrl } = await uploadVideo(
+            fileBuffer,
+            fileName,
+            fileMime
+          )
+          mediaUrl = playbackUrl
+          mediaType = 'video'
+          cfStreamId = streamId
+        } else {
+          return reply.status(400).send({ error: 'Unsupported media type' })
         }
-        const { url } = await uploadImage(
-          fileBuffer,
-          `posts/${userId}`,
-          fileMime!
-        )
-        mediaUrl = url
-        mediaType = 'image'
-      } else if (isVideoMime(fileMime)) {
-        if (fileBuffer.length > VIDEO_LIMIT) {
-          return reply.status(400).send({ error: 'Video must be under 50MB' })
-        }
-        const { streamId, playbackUrl } = await uploadVideo(
-          fileBuffer,
-          fileName,
-          fileMime
-        )
-        mediaUrl = playbackUrl
-        mediaType = 'video'
-        cfStreamId = streamId
-      } else {
-        return reply.status(400).send({ error: 'Unsupported media type' })
       }
 
       const [row] = await db`

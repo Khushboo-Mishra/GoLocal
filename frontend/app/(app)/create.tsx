@@ -27,10 +27,11 @@ import { postsApi } from '@/services/api/client';
 const IMAGE_LIMIT_BYTES = 10 * 1024 * 1024; // 10MB — matches backend IMAGE_LIMIT in routes/posts.ts
 const VIDEO_LIMIT_BYTES = 50 * 1024 * 1024; // 50MB — matches backend VIDEO_LIMIT in routes/posts.ts
 
+// The backend only knows event/hangout/deal — "Post" maps to 'hangout'.
+// Deal isn't offered in this UI yet.
 const TYPES: { key: PostType; label: string }[] = [
   { key: 'event', label: 'Event' },
-  { key: 'hangout', label: 'Hangout' },
-  { key: 'deal', label: 'Deal' },
+  { key: 'hangout', label: 'Post' },
 ];
 
 function CloseIcon({ color }: { color: string }) {
@@ -157,10 +158,6 @@ export default function CreatePostScreen() {
       setSubmitError('Add a title for your post.');
       return;
     }
-    if (!media) {
-      setMediaError('Add a photo or video to continue.');
-      return;
-    }
     if (location.lat == null || location.lng == null) {
       setSubmitError("We need your location to post — check Settings and try again.");
       return;
@@ -176,13 +173,15 @@ export default function CreatePostScreen() {
 
     setSubmitting(true);
     try {
-      const isVideo = media.type === 'video';
       const formData = new FormData();
-      formData.append('file', {
-        uri: media.uri,
-        name: media.fileName ?? (isVideo ? 'upload.mp4' : 'upload.jpg'),
-        type: media.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg'),
-      } as unknown as Blob);
+      if (media) {
+        const isVideo = media.type === 'video';
+        formData.append('file', {
+          uri: media.uri,
+          name: media.fileName ?? (isVideo ? 'upload.mp4' : 'upload.jpg'),
+          type: media.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg'),
+        } as unknown as Blob);
+      }
       formData.append('type', type);
       formData.append('title', title.trim());
       if (description.trim()) formData.append('description', description.trim());
@@ -207,7 +206,11 @@ export default function CreatePostScreen() {
   }
 
   const locationReady = location.status === 'success' && location.lat != null && location.lng != null;
-  const canSubmit = !submitting && locationReady;
+  const canSubmit =
+    !submitting &&
+    locationReady &&
+    title.trim().length > 0 &&
+    (type !== 'event' || !!eventDate);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={['top', 'bottom']}>
@@ -220,7 +223,21 @@ export default function CreatePostScreen() {
           <CloseIcon color={c.textSecondary} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: c.textPrimary }]}>New Post</Text>
-        <View style={styles.closeBtn} />
+        <Pressable
+          onPress={handleSubmit}
+          disabled={!canSubmit}
+          style={[
+            styles.postBtn,
+            { backgroundColor: c.brand, opacity: canSubmit ? 1 : 0.5 },
+            tokens.shadows.button,
+          ]}
+        >
+          {submitting ? (
+            <ActivityIndicator color={c.brandInk} size="small" />
+          ) : (
+            <Text style={[styles.postBtnText, { color: c.brandInk }]}>Post</Text>
+          )}
+        </Pressable>
       </View>
 
       <KeyboardAvoidingView
@@ -301,7 +318,7 @@ export default function CreatePostScreen() {
               <View style={styles.mediaPlaceholder}>
                 <MediaIcon color={c.textTertiary} />
                 <Text style={[styles.mediaPlaceholderText, { color: c.textSecondary }]}>
-                  Add a photo or video
+                  Add a photo or video (optional)
                 </Text>
               </View>
             )}
@@ -459,25 +476,6 @@ export default function CreatePostScreen() {
             <Text style={[styles.fieldError, { color: '#e05252' }]}>{submitError}</Text>
           )}
         </ScrollView>
-
-        {/* Submit */}
-        <View style={[styles.footer, { borderTopColor: c.border }]}>
-          <Pressable
-            onPress={handleSubmit}
-            disabled={!canSubmit}
-            style={[
-              styles.submitBtn,
-              { backgroundColor: c.brand, opacity: canSubmit ? 1 : 0.5 },
-              tokens.shadows.button,
-            ]}
-          >
-            {submitting ? (
-              <ActivityIndicator color={c.brandInk} />
-            ) : (
-              <Text style={[styles.submitBtnText, { color: c.brandInk }]}>Post</Text>
-            )}
-          </Pressable>
-        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -507,9 +505,21 @@ const styles = StyleSheet.create({
     fontSize: 22,
     letterSpacing: -0.3,
   },
+  postBtn: {
+    minWidth: 64,
+    height: 36,
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postBtnText: {
+    fontFamily: 'Sora_600SemiBold',
+    fontSize: 13.5,
+  },
   scroll: {
     paddingHorizontal: 22,
-    paddingBottom: 32,
+    paddingBottom: 140,
     gap: 18,
   },
   typeRow: {
@@ -620,21 +630,5 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  footer: {
-    paddingHorizontal: 22,
-    paddingTop: 14,
-    paddingBottom: 14,
-    borderTopWidth: 1,
-  },
-  submitBtn: {
-    height: 52,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitBtnText: {
-    fontFamily: 'Sora_600SemiBold',
-    fontSize: 15,
   },
 });

@@ -154,3 +154,12 @@ INSERT INTO rooms (name, neighborhood) VALUES
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS notify_nearby BOOLEAN NOT NULL DEFAULT TRUE,
   ADD COLUMN IF NOT EXISTS notify_event_soon BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- ─────────────────────────────────────────────────────────────
+-- 9. Allow text-only posts (no media attached)
+--    media_url/media_type are now optional so POST /posts can
+--    accept fileless submissions without an R2/Stream upload.
+-- ─────────────────────────────────────────────────────────────
+ALTER TABLE posts
+  ALTER COLUMN media_url DROP NOT NULL,
+  ALTER COLUMN media_type DROP NOT NULL;

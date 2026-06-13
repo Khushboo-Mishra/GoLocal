@@ -48,8 +48,10 @@ export function EventCard({ post, onCommentPress }: EventCardProps) {
       },
     ]}>
       {/* Hero */}
-      <View style={styles.hero}>
-        <Image source={{ uri: post.mediaUrl }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+      <View style={[styles.hero, { backgroundColor: c.bg }]}>
+        {!!post.mediaUrl && (
+          <Image source={{ uri: post.mediaUrl }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
+        )}
 
         {eventDate && (
           <View style={[styles.dateBadge, { backgroundColor: c.bg, borderColor: c.border }]}>

@@ -28,8 +28,8 @@ export interface PostDto {
   type: 'event' | 'hangout' | 'deal'
   title: string
   description: string | null
-  mediaUrl: string
-  mediaType: 'image' | 'video'
+  mediaUrl: string | null
+  mediaType: 'image' | 'video' | null
   cfStreamId: string | null
   likeCount: number
   saveCount: number
@@ -51,8 +51,8 @@ export function toPostDto(row: any): PostDto {
     type: row.type,
     title: row.title,
     description: row.description ?? null,
-    mediaUrl: row.media_url,
-    mediaType: row.media_type,
+    mediaUrl: row.media_url ?? null,
+    mediaType: row.media_type ?? null,
     cfStreamId: row.cf_stream_id ?? null,
     likeCount: row.like_count,
     saveCount: row.save_count,

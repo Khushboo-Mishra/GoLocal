@@ -15,8 +15,8 @@ export type Post = {
   type: PostType
   title: string
   description: string | null
-  mediaUrl: string
-  mediaType: MediaType
+  mediaUrl: string | null
+  mediaType: MediaType | null
   cfStreamId: string | null
   likeCount: number
   saveCount: number
