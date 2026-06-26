@@ -34,6 +34,9 @@ export default function SignInScreen() {
         password,
       })
 
+      console.log('SIGN-IN STATUS:', result?.status)
+      console.error('SIGN-IN RESULT:', JSON.stringify(result, null, 2))
+
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId })
         // Navigation to (app) is handled automatically by the auth guard
@@ -43,6 +46,7 @@ export default function SignInScreen() {
         setError('Sign-in incomplete. Please check your credentials.')
       }
     } catch (e: any) {
+      console.error('SIGN-IN ERROR:', JSON.stringify(e, null, 2))
       const msg =
         e?.errors?.[0]?.longMessage ??
         e?.errors?.[0]?.message ??
