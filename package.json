@@ -20,6 +20,11 @@
     "pnpm": ">=9.0.0"
   },
   "packageManager": "pnpm@9.0.0",
+  "pnpm": {
+    "overrides": {
+      "@expo/metro-runtime": "~6.1.2"
+    }
+  },
   "devDependencies": {
     "@types/react": "~19.2.10",
     "typescript": "~5.9.2"
