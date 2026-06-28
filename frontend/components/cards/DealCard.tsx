@@ -50,7 +50,7 @@ export function DealCard({ post, onCommentPress }: DealCardProps) {
         <View style={styles.metaRow}>
           <View style={styles.metaLeft}>
             <DistanceLabel label={formatDistanceLabel(post.distanceMiles)} />
-            <NeighborhoodLabel name={getNeighborhood(post.lat, post.lng)} />
+            <NeighborhoodLabel name={post.neighborhood ?? getNeighborhood(post.lat, post.lng)} />
           </View>
           <ActionRow
             postId={post.id}

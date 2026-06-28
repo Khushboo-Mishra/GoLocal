@@ -48,7 +48,7 @@ export async function feedRoutes(server: FastifyInstance) {
       SELECT
         p.id, p.type, p.title, p.description,
         p.media_url, p.media_type, p.cf_stream_id,
-        p.like_count, p.save_count, p.event_time, p.created_at,
+        p.like_count, p.save_count, p.event_time, p.created_at, p.neighborhood,
         ST_X(p.location::geometry) AS lng,
         ST_Y(p.location::geometry) AS lat,
         ROUND(ST_Distance(
@@ -110,14 +110,17 @@ export async function feedRoutes(server: FastifyInstance) {
     const query = feedQuery.safeParse(request.query)
     if (!query.success) return reply.status(400).send({ error: query.error.flatten() })
 
-    const { lat, lng, radius, type, cursor, limit } = query.data
+    // Trending is single-page by design (top-N most-liked in 24h), so we
+    // ignore any cursor and never claim more pages — matches docs/api.md
+    // and the frontend TrendingResponse ({ posts } only).
+    const { lat, lng, radius, type, limit } = query.data
     const radiusMeters = milesToMeters(radius)
 
     const rows = await db`
       SELECT
         p.id, p.type, p.title, p.description,
         p.media_url, p.media_type, p.cf_stream_id,
-        p.like_count, p.save_count, p.event_time, p.created_at,
+        p.like_count, p.save_count, p.event_time, p.created_at, p.neighborhood,
         ST_X(p.location::geometry) AS lng,
         ST_Y(p.location::geometry) AS lat,
         ROUND(ST_Distance(
@@ -136,7 +139,6 @@ export async function feedRoutes(server: FastifyInstance) {
           ${radiusMeters}
         )
         ${type ? db`AND p.type = ${type}` : db``}
-        ${cursor ? db`AND p.like_count < ${Number(cursor)}` : db``}
       ORDER BY p.like_count DESC, p.created_at DESC
       LIMIT ${limit}
     `
@@ -156,7 +158,7 @@ export async function feedRoutes(server: FastifyInstance) {
       SELECT
         p.id, p.type, p.title, p.description,
         p.media_url, p.media_type, p.cf_stream_id,
-        p.like_count, p.save_count, p.event_time, p.created_at,
+        p.like_count, p.save_count, p.event_time, p.created_at, p.neighborhood,
         ST_X(p.location::geometry) AS lng,
         ST_Y(p.location::geometry) AS lat,
         u.id AS user_id, u.name AS user_name, u.avatar_url,

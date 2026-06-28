@@ -16,12 +16,13 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '@/theme';
 import type { Comment } from '@/types';
-import { getComments } from '@/services/fixtures/comments';
+import { commentsApi } from '@/services/api/client';
+import { useAuthStore } from '@/services/stores/authStore';
 import { Avatar } from '@/components/cards/shared/Avatar';
-import { Svg, Path, Line, Polygon } from 'react-native-svg';
+import { Svg, Line, Polygon } from 'react-native-svg';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.74;
@@ -31,6 +32,19 @@ interface CommentSheetProps {
   onClose: () => void;
 }
 
+// Compact relative time (e.g. "now", "5m ago", "3h ago", "2d ago").
+function timeAgo(iso: string): string {
+  const secs = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (secs < 60) return 'now';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return `${Math.floor(days / 7)}w ago`;
+}
+
 function CommentItem({ comment }: { comment: Comment }) {
   const { tokens } = useTheme();
   const c = tokens.colors;
@@ -38,36 +52,22 @@ function CommentItem({ comment }: { comment: Comment }) {
   return (
     <View style={styles.commentItem}>
       <Avatar
-        initial={comment.author.initial}
-        gradient={comment.author.avatarGradient}
+        initial={(comment.userName || '?').charAt(0).toUpperCase()}
+        gradient={[c.brand, c.brandDeep]}
         size={36}
       />
       <View style={styles.commentContent}>
         <View style={styles.commentHead}>
           <Text style={[styles.commentUser, { color: c.textPrimary }]}>
-            {comment.author.handle}
+            {comment.userName}
           </Text>
           <Text style={[styles.commentTime, { color: c.textTertiary }]}>
-            {comment.timeAgo}
+            {timeAgo(comment.createdAt)}
           </Text>
         </View>
         <Text style={[styles.commentText, { color: c.textPrimary }]}>
           {comment.body}
         </Text>
-        <View style={styles.commentMeta}>
-          <Pressable style={styles.commentAction}>
-            <Svg width={11} height={11} viewBox="0 0 24 24" fill="none"
-              stroke={c.textSecondary} strokeWidth={2} strokeLinecap="round">
-              <Path d="M12 2.5C9.5 5.5 8 8.5 8 11.5c0 0-1.5-1-2-2.5C4.5 11.5 4 13.5 4 15c0 4.4 3.6 7.5 8 7.5s8-3.1 8-7.5c0-5-3.5-8.5-8-12.5z" />
-            </Svg>
-            <Text style={[styles.commentActionText, { color: c.textSecondary }]}>
-              {comment.fireCount}
-            </Text>
-          </Pressable>
-          <Pressable style={styles.commentAction}>
-            <Text style={[styles.commentActionText, { color: c.textSecondary }]}>Reply</Text>
-          </Pressable>
-        </View>
       </View>
     </View>
   );
@@ -76,14 +76,60 @@ function CommentItem({ comment }: { comment: Comment }) {
 export function CommentSheet({ postId, onClose }: CommentSheetProps) {
   const { tokens } = useTheme();
   const c = tokens.colors;
-  const [comments, setComments] = useState<Comment[]>([]);
   const [inputText, setInputText] = useState('');
+  const me = useAuthStore((s) => s.user);
+  const queryClient = useQueryClient();
 
   const sheetTranslateY = useSharedValue(SHEET_HEIGHT);
   const backdropOpacity = useSharedValue(0);
   const [isVisible, setIsVisible] = useState(false);
 
   const isOpen = postId !== null;
+
+  const { data: comments = [], isLoading } = useQuery({
+    queryKey: ['comments', postId],
+    queryFn: () => commentsApi.list(postId!).then((r) => r.comments),
+    enabled: isOpen,
+  });
+
+  const createComment = useMutation({
+    mutationFn: (body: string) => commentsApi.create(postId!, body),
+    // Optimistically prepend so the comment never appears "lost".
+    onMutate: async (body) => {
+      await queryClient.cancelQueries({ queryKey: ['comments', postId] });
+      const previous = queryClient.getQueryData<Comment[]>(['comments', postId]);
+      const optimistic: Comment = {
+        id: `temp-${Date.now()}`,
+        postId: postId!,
+        body,
+        createdAt: new Date().toISOString(),
+        userId: me?.id ?? 'me',
+        userName: me?.name ?? 'You',
+        avatarUrl: me?.avatarUrl ?? null,
+      };
+      queryClient.setQueryData<Comment[]>(['comments', postId], (old = []) => [
+        optimistic,
+        ...old,
+      ]);
+      return { previous };
+    },
+    onError: (_err, _body, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(['comments', postId], ctx.previous);
+      }
+    },
+    // Reconcile the temp row with server truth (real id, exact timestamp).
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+    },
+  });
+
+  function handleSend() {
+    const text = inputText.trim();
+    if (!text || !postId) return;
+    setInputText('');
+    createComment.mutate(text);
+  }
 
   useEffect(() => {
     if (isOpen) {
@@ -93,7 +139,6 @@ export function CommentSheet({ postId, onClose }: CommentSheetProps) {
         easing: Easing.bezier(0.25, 1, 0.5, 1),
       });
       backdropOpacity.value = withTiming(0.35, { duration: 300 });
-      getComments(postId!).then(setComments);
     } else {
       sheetTranslateY.value = withTiming(SHEET_HEIGHT, {
         duration: 350,
@@ -102,7 +147,6 @@ export function CommentSheet({ postId, onClose }: CommentSheetProps) {
       backdropOpacity.value = withTiming(0, { duration: 300 });
       const t = setTimeout(() => {
         setIsVisible(false);
-        setComments([]);
       }, 360);
       return () => clearTimeout(t);
     }
@@ -156,6 +200,13 @@ export function CommentSheet({ postId, onClose }: CommentSheetProps) {
             renderItem={({ item }) => <CommentItem comment={item} />}
             style={styles.body}
             showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              isLoading ? null : (
+                <Text style={[styles.emptyText, { color: c.textTertiary }]}>
+                  No comments yet — say something.
+                </Text>
+              )
+            }
           />
 
           {/* Input */}
@@ -174,6 +225,9 @@ export function CommentSheet({ postId, onClose }: CommentSheetProps) {
               placeholderTextColor={c.textTertiary}
               value={inputText}
               onChangeText={setInputText}
+              onSubmitEditing={handleSend}
+              returnKeyType="send"
+              maxLength={500}
             />
             <Pressable
               style={[
@@ -185,12 +239,10 @@ export function CommentSheet({ postId, onClose }: CommentSheetProps) {
                   shadowOpacity: 0.4,
                   shadowRadius: 12,
                   elevation: 4,
+                  opacity: inputText.trim() ? 1 : 0.5,
                 },
               ]}
-              onPress={() => {
-                console.log('send comment:', inputText);
-                setInputText('');
-              }}
+              onPress={handleSend}
             >
               <Svg width={15} height={15} viewBox="0 0 24 24" fill="none"
                 stroke={c.brandInk} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
@@ -266,6 +318,13 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
   },
+  emptyText: {
+    fontFamily: 'Sora_400Regular',
+    fontSize: 13,
+    textAlign: 'center',
+    paddingTop: 40,
+    paddingHorizontal: 22,
+  },
   commentItem: {
     flexDirection: 'row',
     gap: 12,
@@ -296,21 +355,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Sora_400Regular',
     fontSize: 13.5,
     lineHeight: 19.5,
-    marginBottom: 8,
-  },
-  commentMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  commentAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  commentActionText: {
-    fontFamily: 'Sora_500Medium',
-    fontSize: 11,
   },
   inputRow: {
     flexDirection: 'row',

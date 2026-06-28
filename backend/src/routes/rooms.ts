@@ -76,7 +76,7 @@ export async function roomRoutes(server: FastifyInstance) {
       SELECT
         p.id, p.type, p.title, p.description,
         p.media_url, p.media_type, p.cf_stream_id,
-        p.like_count, p.save_count, p.event_time, p.created_at,
+        p.like_count, p.save_count, p.event_time, p.created_at, p.neighborhood,
         ST_X(p.location::geometry) AS lng,
         ST_Y(p.location::geometry) AS lat,
         u.id AS user_id, u.name AS user_name, u.avatar_url,

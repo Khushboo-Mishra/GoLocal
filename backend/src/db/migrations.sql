@@ -1,5 +1,10 @@
--- Run this in Supabase SQL Editor (Dashboard → SQL Editor → New query)
--- Run in order. Each block is a separate migration.
+-- GoLocal schema. Run in order; each block is a migration.
+--
+-- This file is fully IDEMPOTENT — every statement is safe to re-run on an
+-- existing database. Tables/indexes use IF NOT EXISTS, enum types are wrapped
+-- in a DO/EXCEPTION guard, the trigger is dropped-then-created, and the room
+-- seed is guarded by NOT EXISTS. So `pnpm db:migrate` (which runs the whole
+-- file) no longer dies on "relation already exists" / "type already exists".
 
 -- ─────────────────────────────────────────────────────────────
 -- 0. Enable PostGIS (run first, once per project)
@@ -9,7 +14,7 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 -- ─────────────────────────────────────────────────────────────
 -- 1. Users
 -- ─────────────────────────────────────────────────────────────
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   clerk_id      TEXT UNIQUE NOT NULL,
   name          TEXT NOT NULL,
@@ -21,23 +26,29 @@ CREATE TABLE users (
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX users_clerk_id_idx ON users(clerk_id);
-CREATE INDEX users_location_idx ON users USING GIST(location);
+CREATE INDEX IF NOT EXISTS users_clerk_id_idx ON users(clerk_id);
+CREATE INDEX IF NOT EXISTS users_location_idx ON users USING GIST(location);
 
 -- ─────────────────────────────────────────────────────────────
 -- 2. Posts
 -- ─────────────────────────────────────────────────────────────
-CREATE TYPE post_type AS ENUM ('event', 'hangout', 'deal');
-CREATE TYPE media_type AS ENUM ('image', 'video');
+-- Postgres has no CREATE TYPE IF NOT EXISTS, so guard each enum.
+DO $$ BEGIN
+  CREATE TYPE post_type AS ENUM ('event', 'hangout', 'deal');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
-CREATE TABLE posts (
+DO $$ BEGIN
+  CREATE TYPE media_type AS ENUM ('image', 'video');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+CREATE TABLE IF NOT EXISTS posts (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   type          post_type NOT NULL,
   title         TEXT NOT NULL CHECK (char_length(title) <= 80),
   description   TEXT CHECK (char_length(description) <= 300),
-  media_url     TEXT NOT NULL,
-  media_type    media_type NOT NULL DEFAULT 'image',
+  media_url     TEXT,
+  media_type    media_type,
   cf_stream_id  TEXT,                        -- Cloudflare Stream video ID (video only)
   location      GEOMETRY(Point, 4326) NOT NULL,
   event_time    TIMESTAMPTZ,                 -- For type='event' only
@@ -49,23 +60,23 @@ CREATE TABLE posts (
 );
 
 -- Critical indexes for geo feed queries
-CREATE INDEX posts_location_idx  ON posts USING GIST(location);
-CREATE INDEX posts_created_at_idx ON posts(created_at DESC) WHERE is_deleted = FALSE;
-CREATE INDEX posts_user_id_idx   ON posts(user_id);
-CREATE INDEX posts_type_idx      ON posts(type) WHERE is_deleted = FALSE;
-CREATE INDEX posts_event_time_idx ON posts(event_time) WHERE type = 'event' AND is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS posts_location_idx  ON posts USING GIST(location);
+CREATE INDEX IF NOT EXISTS posts_created_at_idx ON posts(created_at DESC) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS posts_user_id_idx   ON posts(user_id);
+CREATE INDEX IF NOT EXISTS posts_type_idx      ON posts(type) WHERE is_deleted = FALSE;
+CREATE INDEX IF NOT EXISTS posts_event_time_idx ON posts(event_time) WHERE type = 'event' AND is_deleted = FALSE;
 
 -- ─────────────────────────────────────────────────────────────
 -- 3. Post interactions
 -- ─────────────────────────────────────────────────────────────
-CREATE TABLE post_likes (
+CREATE TABLE IF NOT EXISTS post_likes (
   user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   post_id    UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
   liked_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, post_id)
 );
 
-CREATE TABLE saved_posts (
+CREATE TABLE IF NOT EXISTS saved_posts (
   user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   post_id    UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
   saved_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -75,9 +86,11 @@ CREATE TABLE saved_posts (
 -- ─────────────────────────────────────────────────────────────
 -- 4. Push notification tokens
 -- ─────────────────────────────────────────────────────────────
-CREATE TYPE device_platform AS ENUM ('ios', 'android');
+DO $$ BEGIN
+  CREATE TYPE device_platform AS ENUM ('ios', 'android');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
-CREATE TABLE push_tokens (
+CREATE TABLE IF NOT EXISTS push_tokens (
   user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token      TEXT NOT NULL,
   platform   device_platform NOT NULL,
@@ -88,10 +101,15 @@ CREATE TABLE push_tokens (
 -- ─────────────────────────────────────────────────────────────
 -- 5. Reports (safety)
 -- ─────────────────────────────────────────────────────────────
-CREATE TYPE report_target AS ENUM ('post', 'user');
-CREATE TYPE report_reason AS ENUM ('spam', 'fake', 'inappropriate', 'safety', 'other');
+DO $$ BEGIN
+  CREATE TYPE report_target AS ENUM ('post', 'user');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
-CREATE TABLE reports (
+DO $$ BEGIN
+  CREATE TYPE report_reason AS ENUM ('spam', 'fake', 'inappropriate', 'safety', 'other');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+CREATE TABLE IF NOT EXISTS reports (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   reporter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   target_type report_target NOT NULL,
@@ -114,6 +132,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- DROP-then-CREATE so the trigger is re-runnable (no CREATE TRIGGER IF NOT EXISTS).
+DROP TRIGGER IF EXISTS post_report_threshold_trigger ON reports;
 CREATE TRIGGER post_report_threshold_trigger
 AFTER INSERT ON reports
 FOR EACH ROW EXECUTE FUNCTION check_post_report_threshold();
@@ -121,7 +141,7 @@ FOR EACH ROW EXECUTE FUNCTION check_post_report_threshold();
 -- ─────────────────────────────────────────────────────────────
 -- 6. Blocked users
 -- ─────────────────────────────────────────────────────────────
-CREATE TABLE blocked_users (
+CREATE TABLE IF NOT EXISTS blocked_users (
   blocker_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   blocked_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   blocked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -131,7 +151,7 @@ CREATE TABLE blocked_users (
 -- ─────────────────────────────────────────────────────────────
 -- 7. Rooms
 -- ─────────────────────────────────────────────────────────────
-CREATE TABLE rooms (
+CREATE TABLE IF NOT EXISTS rooms (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name             TEXT NOT NULL,
   neighborhood     TEXT,
@@ -140,11 +160,17 @@ CREATE TABLE rooms (
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Seed system rooms for NYC launch
-INSERT INTO rooms (name, neighborhood) VALUES
-  ('East Village', 'East Village'),
-  ('NYU', 'Greenwich Village'),
-  ('Lower East Side', 'Lower East Side');
+-- Seed system rooms for NYC launch (with coordinates so /rooms/:id/posts works).
+-- PostGIS point is (longitude, latitude). Guarded by NOT EXISTS so re-runs
+-- never duplicate a room.
+INSERT INTO rooms (name, neighborhood, location)
+SELECT v.name, v.neighborhood, v.location
+FROM (VALUES
+  ('East Village',    'East Village',      ST_SetSRID(ST_MakePoint(-73.9815, 40.7265), 4326)),
+  ('NYU',             'Greenwich Village', ST_SetSRID(ST_MakePoint(-73.9973, 40.7308), 4326)),
+  ('Lower East Side', 'Lower East Side',   ST_SetSRID(ST_MakePoint(-73.9843, 40.7150), 4326))
+) AS v(name, neighborhood, location)
+WHERE NOT EXISTS (SELECT 1 FROM rooms r WHERE r.name = v.name);
 
 -- ─────────────────────────────────────────────────────────────
 -- 8. Notification preferences
@@ -159,7 +185,48 @@ ALTER TABLE users
 -- 9. Allow text-only posts (no media attached)
 --    media_url/media_type are now optional so POST /posts can
 --    accept fileless submissions without an R2/Stream upload.
+--    (posts above is already created nullable; this keeps existing
+--    databases in sync and is a no-op on a fresh one.)
 -- ─────────────────────────────────────────────────────────────
 ALTER TABLE posts
   ALTER COLUMN media_url DROP NOT NULL,
   ALTER COLUMN media_type DROP NOT NULL;
+
+-- ─────────────────────────────────────────────────────────────
+-- 10. Comments (V1)
+--     One row per comment. Counts are derived on read for now
+--     (no denormalized comment_count column yet).
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS comments (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id     UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body        TEXT NOT NULL CHECK (char_length(body) BETWEEN 1 AND 500),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Fetch a post's comments newest-first in one index scan.
+CREATE INDEX IF NOT EXISTS comments_post_id_created_idx
+  ON comments(post_id, created_at DESC);
+
+-- ─────────────────────────────────────────────────────────────
+-- 11. Backfill room coordinates (idempotent)
+--     The original seed inserted rooms with NULL location, so
+--     /rooms/:id/posts returned empty. Set real NYC coords. Only
+--     touches rows still missing a location, so it's safe to re-run.
+-- ─────────────────────────────────────────────────────────────
+UPDATE rooms SET location = ST_SetSRID(ST_MakePoint(-73.9815, 40.7265), 4326)
+  WHERE name = 'East Village'    AND location IS NULL;
+UPDATE rooms SET location = ST_SetSRID(ST_MakePoint(-73.9973, 40.7308), 4326)
+  WHERE name = 'NYU'             AND location IS NULL;
+UPDATE rooms SET location = ST_SetSRID(ST_MakePoint(-73.9843, 40.7150), 4326)
+  WHERE name = 'Lower East Side' AND location IS NULL;
+
+-- ─────────────────────────────────────────────────────────────
+-- 12. Stored neighborhood label on posts
+--     Computed coarsely from lat/lng at insert time (server-side,
+--     see backend/src/utils/neighborhoods.ts) and read directly by
+--     the feed. Nullable: older rows stay NULL and the frontend
+--     falls back to its client-side helper for them.
+-- ─────────────────────────────────────────────────────────────
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS neighborhood TEXT;

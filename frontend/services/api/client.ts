@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { FeedResponse, TrendingResponse } from '@/types'
+import type { FeedResponse, TrendingResponse, Comment, CommentsResponse } from '@/types'
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'
 
@@ -63,6 +63,19 @@ export const postsApi = {
     apiClient.post(`/posts/${id}/report`, { reason }).then((r) => r.data),
 }
 
+// ── Comments ────────────────────────────────────────────────
+export const commentsApi = {
+  list: (postId: string, cursor?: string) =>
+    apiClient
+      .get<CommentsResponse>(`/posts/${postId}/comments`, { params: { cursor } })
+      .then((r) => r.data),
+
+  create: (postId: string, body: string) =>
+    apiClient
+      .post<{ comment: Comment }>(`/posts/${postId}/comments`, { body })
+      .then((r) => r.data.comment),
+}
+
 // ── Users ───────────────────────────────────────────────────
 export const usersApi = {
   sync: (name: string, avatarUrl?: string) =>
@@ -84,6 +97,12 @@ export const usersApi = {
     apiClient.post('/users/me/avatar', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then((r) => r.data),
+
+  block: (userId: string) =>
+    apiClient.post(`/users/${userId}/block`).then((r) => r.data),
+
+  reportUser: (userId: string, reason: string) =>
+    apiClient.post(`/users/${userId}/report`, { reason }).then((r) => r.data),
 }
 
 // ── Rooms ───────────────────────────────────────────────────

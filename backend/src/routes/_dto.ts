@@ -35,6 +35,7 @@ export interface PostDto {
   saveCount: number
   eventTime: string | null
   createdAt: string
+  neighborhood: string | null
   distanceMiles?: number
   lat?: number
   lng?: number
@@ -43,6 +44,31 @@ export interface PostDto {
   avatarUrl: string | null
   liked?: boolean
   saved?: boolean
+}
+
+export interface CommentDto {
+  id: string
+  postId: string
+  body: string
+  createdAt: string
+  userId: string
+  userName: string
+  avatarUrl: string | null
+}
+
+export function toCommentDto(row: any): CommentDto {
+  return {
+    id: row.id,
+    postId: row.post_id,
+    body: row.body,
+    createdAt:
+      row.created_at instanceof Date
+        ? row.created_at.toISOString()
+        : row.created_at,
+    userId: row.user_id,
+    userName: row.user_name,
+    avatarUrl: row.avatar_url ?? null,
+  }
 }
 
 export function toPostDto(row: any): PostDto {
@@ -64,6 +90,7 @@ export function toPostDto(row: any): PostDto {
       row.created_at instanceof Date
         ? row.created_at.toISOString()
         : row.created_at,
+    neighborhood: row.neighborhood ?? null,
     distanceMiles: row.distance_miles != null ? Number(row.distance_miles) : undefined,
     lat: row.lat != null ? Number(row.lat) : undefined,
     lng: row.lng != null ? Number(row.lng) : undefined,

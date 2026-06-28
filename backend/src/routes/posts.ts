@@ -6,8 +6,9 @@ import { z } from 'zod'
 import { db } from '../db/client'
 import { requireAuth } from '../middleware/requireAuth'
 import { currentUserId } from './_currentUser'
-import { toPostDto } from './_dto'
+import { toPostDto, toCommentDto } from './_dto'
 import { latSchema, lngSchema } from '../utils/geo'
+import { getNeighborhood } from '../utils/neighborhoods'
 import {
   uploadImage,
   uploadVideo,
@@ -25,6 +26,15 @@ const uuidParamSchema = z.object({ id: z.string().uuid() })
 
 const reportReasonSchema = z.object({
   reason: z.enum(['spam', 'fake', 'inappropriate', 'safety', 'other']),
+})
+
+const commentBodySchema = z.object({
+  body: z.string().trim().min(1).max(500),
+})
+
+const commentListQuerySchema = z.object({
+  cursor: z.string().datetime().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(30),
 })
 
 const postFieldsSchema = z.object({
@@ -131,22 +141,25 @@ export async function postRoutes(server: FastifyInstance) {
         }
       }
 
+      // Coarse neighborhood label, computed server-side and stored on the row.
+      const neighborhood = getNeighborhood(lat, lng)
+
       const [row] = await db`
         INSERT INTO posts (
           user_id, type, title, description,
           media_url, media_type, cf_stream_id,
-          location, event_time
+          location, event_time, neighborhood
         )
         VALUES (
           ${userId}, ${type}, ${title}, ${description ?? null},
           ${mediaUrl}, ${mediaType}, ${cfStreamId},
           ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326),
-          ${eventTime ?? null}
+          ${eventTime ?? null}, ${neighborhood}
         )
         RETURNING
           id, type, title, description,
           media_url, media_type, cf_stream_id,
-          like_count, save_count, event_time, created_at,
+          like_count, save_count, event_time, created_at, neighborhood,
           ${lat}::float8 AS lat, ${lng}::float8 AS lng,
           ${userId}::uuid AS user_id
       `
@@ -202,7 +215,7 @@ export async function postRoutes(server: FastifyInstance) {
       SELECT
         p.id, p.type, p.title, p.description,
         p.media_url, p.media_type, p.cf_stream_id,
-        p.like_count, p.save_count, p.event_time, p.created_at,
+        p.like_count, p.save_count, p.event_time, p.created_at, p.neighborhood,
         ST_X(p.location::geometry) AS lng,
         ST_Y(p.location::geometry) AS lat,
         u.id AS user_id, u.name AS user_name, u.avatar_url,
@@ -348,5 +361,76 @@ export async function postRoutes(server: FastifyInstance) {
       VALUES (${me}, 'post', ${params.data.id}, ${body.data.reason})
     `
     return { ok: true }
+  })
+
+  // ── GET /posts/:id/comments ─────────────────────────────
+  // Newest-first, cursor on created_at (pass the oldest createdAt
+  // you've seen to page back). Public to any authed user.
+  server.get('/:id/comments', { preHandler: requireAuth }, async (request, reply) => {
+    const params = uuidParamSchema.safeParse(request.params)
+    if (!params.success) return reply.status(400).send({ error: 'Invalid post id' })
+
+    const query = commentListQuerySchema.safeParse(request.query)
+    if (!query.success) return reply.status(400).send({ error: query.error.flatten() })
+    const { cursor, limit } = query.data
+
+    const exists = await db`
+      SELECT 1 FROM posts WHERE id = ${params.data.id} AND is_deleted = FALSE LIMIT 1
+    `
+    if (exists.length === 0) return reply.status(404).send({ error: 'Post not found' })
+
+    // Fetch limit+1 to know whether another page exists.
+    const rows = await db`
+      SELECT
+        c.id, c.post_id, c.body, c.created_at,
+        u.id AS user_id, u.name AS user_name, u.avatar_url
+      FROM comments c
+      JOIN users u ON u.id = c.user_id
+      WHERE c.post_id = ${params.data.id}
+        ${cursor ? db`AND c.created_at < ${cursor}` : db``}
+      ORDER BY c.created_at DESC
+      LIMIT ${limit + 1}
+    `
+
+    const hasMore = rows.length > limit
+    const page = hasMore ? rows.slice(0, limit) : rows
+    const nextCursor = hasMore
+      ? (page[page.length - 1].created_at instanceof Date
+          ? page[page.length - 1].created_at.toISOString()
+          : page[page.length - 1].created_at)
+      : null
+
+    return { comments: page.map(toCommentDto), nextCursor, hasMore }
+  })
+
+  // ── POST /posts/:id/comments ────────────────────────────
+  server.post('/:id/comments', { preHandler: requireAuth }, async (request, reply) => {
+    const params = uuidParamSchema.safeParse(request.params)
+    if (!params.success) return reply.status(400).send({ error: 'Invalid post id' })
+
+    const body = commentBodySchema.safeParse(request.body)
+    if (!body.success) return reply.status(400).send({ error: body.error.flatten() })
+
+    const clerkUserId = (request as any).clerkUserId
+    const me = await currentUserId(clerkUserId)
+    if (!me) return reply.status(404).send({ error: 'User not found' })
+
+    // Don't let comments be fired into a deleted/non-existent post.
+    const exists = await db`
+      SELECT 1 FROM posts WHERE id = ${params.data.id} AND is_deleted = FALSE LIMIT 1
+    `
+    if (exists.length === 0) return reply.status(404).send({ error: 'Post not found' })
+
+    const [row] = await db`
+      INSERT INTO comments (post_id, user_id, body)
+      VALUES (${params.data.id}, ${me}, ${body.data.body})
+      RETURNING id, post_id, body, created_at, user_id
+    `
+
+    const [author] = await db`
+      SELECT name AS user_name, avatar_url FROM users WHERE id = ${me}
+    `
+
+    return reply.status(201).send({ comment: toCommentDto({ ...row, ...author }) })
   })
 }

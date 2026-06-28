@@ -43,7 +43,7 @@ export function HangoutCard({ post, onCommentPress }: HangoutCardProps) {
           <View style={styles.metaRow}>
             <View style={styles.metaLeft}>
               <DistanceLabel label={formatDistanceLabel(post.distanceMiles)} surface="dark" />
-              <NeighborhoodLabel name={getNeighborhood(post.lat, post.lng)} surface="dark" />
+              <NeighborhoodLabel name={post.neighborhood ?? getNeighborhood(post.lat, post.lng)} surface="dark" />
             </View>
             <ActionRow
               postId={post.id}
@@ -97,7 +97,7 @@ export function HangoutCard({ post, onCommentPress }: HangoutCardProps) {
       <View style={styles.metaRow}>
         <View style={styles.metaLeft}>
           <DistanceLabel label={formatDistanceLabel(post.distanceMiles)} surface="light" />
-          <NeighborhoodLabel name={getNeighborhood(post.lat, post.lng)} surface="light" />
+          <NeighborhoodLabel name={post.neighborhood ?? getNeighborhood(post.lat, post.lng)} surface="light" />
         </View>
         <ActionRow
           postId={post.id}

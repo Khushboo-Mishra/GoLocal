@@ -22,6 +22,7 @@ export type Post = {
   saveCount: number
   eventTime: string | null
   createdAt: string
+  neighborhood: string | null
   distanceMiles?: number
   lat?: number
   lng?: number
@@ -44,20 +45,19 @@ export type TrendingResponse = {
 
 export type FeedFilter = 'nearby' | 'trending' | 'events'
 
-// ── Comments — V2, still fixture-backed (services/fixtures/comments.ts) ──
-export type Neighborhood = string;
-
-export type Author = {
-  handle: string;
-  initial: string;
-  avatarGradient: [string, string];
-  neighborhood: Neighborhood;
-};
-
+// ── Comments (matches backend CommentDto — backend/src/routes/_dto.ts) ──
 export type Comment = {
-  id: string;
-  author: Author;
-  body: string;
-  timeAgo: string;
-  fireCount: number;
-};
+  id: string
+  postId: string
+  body: string
+  createdAt: string
+  userId: string
+  userName: string
+  avatarUrl: string | null
+}
+
+export type CommentsResponse = {
+  comments: Comment[]
+  nextCursor: string | null
+  hasMore: boolean
+}

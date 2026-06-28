@@ -8,9 +8,9 @@
 // Run:
 //   pnpm db:migrate
 //
-// Note: most statements use IF NOT EXISTS / OR REPLACE / ALTER ADD
-// COLUMN IF NOT EXISTS so re-runs are safe. The CREATE TYPE
-// statements aren't — they'll throw on re-run, which is fine in dev.
+// migrations.sql is fully idempotent (IF NOT EXISTS, DO/EXCEPTION-guarded
+// enum types, drop-then-create trigger, NOT EXISTS-guarded seed), so this
+// is safe to run repeatedly against an existing database.
 
 import 'dotenv/config'
 import { readFileSync } from 'node:fs'
@@ -33,9 +33,9 @@ async function main() {
 
   console.log(`Applying migrations from ${sqlPath}…`)
   try {
-    // Run the full file as a single statement batch.
-    // `postgres` lets us send raw SQL via .unsafe().
-    await sql.unsafe(sqlText)
+    // Run the full file in simple-query mode so multiple statements and
+    // dollar-quoted DO/function blocks execute correctly in one round trip.
+    await sql.unsafe(sqlText).simple()
     console.log('Migrations applied.')
   } catch (err) {
     console.error('Migration failed:', err)
